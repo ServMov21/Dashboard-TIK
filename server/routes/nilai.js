@@ -31,6 +31,17 @@ async function buildRekapData(kelas, rombel) {
     return kt.some(k => kelasSet.includes(k)) && (rt.length === 0 || rt.some(r => rombelSet.includes(r)))
   })
 
+  // Group tasks by judul — same judul = one column
+  const judulMap = new Map()
+  for (const t of relevantTugas) {
+    if (!judulMap.has(t.judul)) {
+      judulMap.set(t.judul, { judul: t.judul, jenis: t.jenis, ids: [t.id] })
+    } else {
+      judulMap.get(t.judul).ids.push(t.id)
+    }
+  }
+  const mergedTasks = [...judulMap.values()]
+
   const siswaIds = siswaList.map(s => s.id)
   const tugasIds = relevantTugas.map(t => t.id)
 
@@ -55,9 +66,20 @@ async function buildRekapData(kelas, rombel) {
     const grades = {}
     let totalNilai = 0
     let countDinilai = 0
-    relevantTugas.forEach(t => {
-      const entry = nilaiIndex[`${s.id}_${t.id}`]
-      grades[t.id] = entry || null
+    mergedTasks.forEach(mt => {
+      // Find grade from any tugasId that has same judul
+      let entry = null
+      for (const tid of mt.ids) {
+        const e = nilaiIndex[`${s.id}_${tid}`]
+        if (e && e.nilai !== null && e.nilai !== undefined) { entry = e; break }
+      }
+      if (!entry) {
+        for (const tid of mt.ids) {
+          const e = nilaiIndex[`${s.id}_${tid}`]
+          if (e) { entry = e; break }
+        }
+      }
+      grades[mt.judul] = entry || null
       if (entry && entry.nilai !== null && entry.nilai !== undefined) {
         totalNilai += entry.nilai
         countDinilai++
@@ -75,7 +97,7 @@ async function buildRekapData(kelas, rombel) {
     s.peringkat = s.total === 0 ? '-' : rank
   })
 
-  return { tasks: relevantTugas, students: sorted }
+  return { tasks: mergedTasks, students: sorted }
 }
 
 // ─── Helper: hitung rank siswa dalam suatu grup ───────────────────────────────
@@ -126,7 +148,7 @@ router.get('/rekap/export', authMiddleware, async (req, res) => {
     const headers = ['No', 'Nama', 'Kelas', 'Rombel', ...tasks.map(t => t.judul), 'Total', 'Rata-rata', 'Peringkat']
     const rows = students.map((s, idx) => [
       idx + 1, s.nama, s.kelas, s.rombel,
-      ...tasks.map(t => { const g = s.grades[t.id]; return (g && g.nilai !== null && g.nilai !== undefined) ? g.nilai : '' }),
+      ...tasks.map(t => { const g = s.grades[t.judul]; return (g && g.nilai !== null && g.nilai !== undefined) ? g.nilai : '' }),
       s.total, s.rataRata, s.peringkat,
     ])
 

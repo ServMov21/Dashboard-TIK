@@ -196,7 +196,7 @@ const RekapNilaiPage = () => {
                   <th className="px-4 py-3 min-w-[60px]">Kelas</th>
                   <th className="px-4 py-3 min-w-[72px]">Rombel</th>
                   {tasks.map(t => (
-                    <th key={t.id} className="px-4 py-3 text-center min-w-[120px] max-w-[160px]" title={t.judul}>
+                    <th key={t.judul} className="px-4 py-3 text-center min-w-[120px] max-w-[160px]" title={t.judul}>
                       <div className="truncate">{t.judul}</div>
                       <div className="text-[10px] text-gray-400 font-normal normal-case tracking-normal">
                         {t.jenis === 'mengetik' ? '⌨️ Mengetik' : '📎 ' + t.jenis}
@@ -216,10 +216,10 @@ const RekapNilaiPage = () => {
                     <td className="px-4 py-3 text-gray-500">{s.kelas}</td>
                     <td className="px-4 py-3 text-gray-500">{s.rombel}</td>
                     {tasks.map(t => {
-                      const g = s.grades[t.id]
+                      const g = s.grades[t.judul]
                       const v = g?.nilai
                       return (
-                        <td key={t.id} className={`px-4 py-3 text-center ${getNilaiColor(v)}`}>
+                        <td key={t.judul} className={`px-4 py-3 text-center ${getNilaiColor(v)}`}>
                           {v !== null && v !== undefined ? v : <span className="text-gray-200 text-xs">—</span>}
                         </td>
                       )

@@ -157,10 +157,8 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
     const femaleSingles = singles.filter((s) => !isMale(s))
     const orderedSingles = [...maleSingles, ...femaleSingles]
 
-    // Laki-laki mengisi sisi kanan dulu; sisanya acak kiri+kanan.
-    const rightOrder = shuffle([...rightDeviceIndexes])
-    const restOrder = shuffle([...leftDeviceIndexes, ...rightDeviceIndexes])
-    const deviceOrder = [...rightOrder, ...restOrder.filter((idx) => !rightOrder.includes(idx))]
+    // Campurkan semua indeks secara acak supaya pasangan menyebar ke kiri & kanan
+    const deviceOrder = shuffle([...leftDeviceIndexes, ...rightDeviceIndexes])
     let cursor = 0
 
     // Tempatkan pasangan wajib (tag) dulu, lalu pasangan laki-laki, lalu pasangan perempuan.

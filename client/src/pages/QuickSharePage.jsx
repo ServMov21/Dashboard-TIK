@@ -75,7 +75,7 @@ const QuickSharePage = () => {
     }
   }
 
-  const shareLink = (kode) => `${lanOrigin}/share/${kode}`
+  const shareLink = (kode) => `${lanOrigin}/s/${kode}`
 
   const handleCopy = (kode) => {
     navigator.clipboard.writeText(shareLink(kode))

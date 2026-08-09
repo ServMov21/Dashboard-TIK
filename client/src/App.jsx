@@ -77,7 +77,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
-      <Route path="/share/:kode" element={<QuickShareJoinPage />} />
+      <Route path="/s/:kode" element={<QuickShareJoinPage />} />
 
       {user?.role === 'guru' && (
         <Route path="/dashboard/*" element={<LayoutWithSidebar><GuruRoutes /></LayoutWithSidebar>} />
