@@ -1,0 +1,23 @@
+{
+  "name": "dashboard-tik",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
+    "build-client": "cd client && npm run build",
+    "check-prisma": "cd server && node scripts/checkPrismaUpdate.js",
+    "migrate-db": "cd server && node scripts/checkPrismaUpdate.js && npx prisma migrate deploy",
+    "seed-db": "cd server && npx prisma db seed",
+    "start": "node server/server.js",
+    "dev": "concurrently \"npm run dev-server\" \"npm run dev-client\"",
+    "dev-server": "cd server && npm run dev",
+    "dev-client": "cd client && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prisma": "^5.22.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
+}
