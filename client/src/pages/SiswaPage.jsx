@@ -164,6 +164,8 @@ const SiswaPage = () => {
     } finally {
       setEditSaving(false)
     }
+  }
+
   const handleSaveAdd = async (e) => {
     e.preventDefault()
     if (!addForm.nama.trim()) return setAddError('Nama tidak boleh kosong.')
