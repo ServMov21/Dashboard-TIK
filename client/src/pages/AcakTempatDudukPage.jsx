@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Users, Shuffle, Monitor, RefreshCw, UserCheck, UserX, AlertTriangle } from 'lucide-react'
+import { Users, Shuffle, Monitor, RefreshCw, UserCheck, UserX, AlertTriangle, Maximize2, X } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 
 const AcakTempatDudukPage = () => {
@@ -15,6 +15,7 @@ const AcakTempatDudukPage = () => {
   const [ringkasan, setRingkasan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showFullscreen, setShowFullscreen] = useState(false)
 
   const [kelasList, setKelasList] = useState([])
   const [rombelList, setRombelList] = useState([])
@@ -226,6 +227,20 @@ const AcakTempatDudukPage = () => {
         {/* Hasil Acak - Layout Ruangan */}
         <div className="lg:col-span-3">
           <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 min-h-[600px] flex flex-col">
+            {/* Header + Toggle Fullscreen */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-800">Hasil Acak</h2>
+              {devices.length > 0 && !loading && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullscreen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition shadow-md shadow-blue-200"
+                >
+                  <Maximize2 className="w-4 h-4" /> Tampilkan Layar Penuh
+                </button>
+              )}
+            </div>
+
             {/* Meja Guru */}
             <div className="w-full flex justify-center mb-8">
               <div className="w-64 h-16 bg-gray-800 text-white rounded-b-2xl flex items-center justify-center font-bold text-lg shadow-md">
@@ -303,6 +318,89 @@ const AcakTempatDudukPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Fullscreen */}
+      {showFullscreen && (
+        <div
+          className="fixed inset-0 z-50 bg-gray-900/95 backdrop-blur-sm flex flex-col p-6 md:p-10"
+          onClick={() => setShowFullscreen(false)}
+        >
+          <div className="flex items-center justify-between mb-6 shrink-0">
+            <h2 className="text-xl md:text-2xl font-bold text-white">
+              Layout Tempat Duduk — {kelas}-{rombel}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowFullscreen(false)}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition"
+              aria-label="Tutup tampilan layar penuh"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div
+            className="flex-1 overflow-auto bg-white rounded-2xl p-6 md:p-10 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Meja Guru */}
+            <div className="w-full flex justify-center mb-8">
+              <div className="w-64 h-16 bg-gray-800 text-white rounded-b-2xl flex items-center justify-center font-bold text-lg shadow-md">
+                MEJA GURU
+              </div>
+            </div>
+
+            {ringkasan && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-8 text-xs">
+                <span className="px-3 py-1.5 bg-gray-100 rounded-full text-gray-600 font-medium">Total aktif: {ringkasan.totalAktif}</span>
+                <span className="px-3 py-1.5 bg-blue-50 rounded-full text-blue-600 font-medium">Laki-laki: {ringkasan.totalLaki} ({ringkasan.pasanganLaki} pasang)</span>
+                <span className="px-3 py-1.5 bg-pink-50 rounded-full text-pink-600 font-medium">Perempuan: {ringkasan.totalPerempuan} ({ringkasan.pasanganPerempuan} pasang)</span>
+                {ringkasan.pasanganWajibTag > 0 && (
+                  <span className="px-3 py-1.5 bg-yellow-50 rounded-full text-yellow-600 font-medium">Pasangan wajib (tag): {ringkasan.pasanganWajibTag}</span>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-x-20 gap-y-8 max-w-4xl mx-auto">
+              {Array.from({ length: 4 }).map((_, rowIndex) => (
+                <React.Fragment key={rowIndex}>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[0, 1].map(colIndex => {
+                      const deviceIndex = (rowIndex * 4) + colIndex
+                      const device = devices[deviceIndex]
+                      return (
+                        <DeviceCard key={`fs-left-${deviceIndex}`} device={device} delay={0} />
+                      )
+                    })}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[2, 3].map(colIndex => {
+                      const deviceIndex = (rowIndex * 4) + colIndex
+                      const device = devices[deviceIndex]
+                      return (
+                        <DeviceCard key={`fs-right-${deviceIndex}`} device={device} delay={0} />
+                      )
+                    })}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+
+            {tidakMasukResult.length > 0 && (
+              <div className="mt-10 max-w-4xl mx-auto">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <UserX className="w-3.5 h-3.5 text-red-400" /> Tidak Masuk ({tidakMasukResult.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {tidakMasukResult.map(s => (
+                    <span key={s.id} className="px-3 py-1.5 bg-red-50 text-red-500 rounded-full text-xs font-medium">{s.nama}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
