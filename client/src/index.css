@@ -6,3 +6,143 @@ body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
+
+/* ═══ Theme Variables ═══ */
+.theme-light {
+  --bg-body: #f9fafb;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+  --accent: #2563eb;
+}
+
+.theme-dark {
+  --bg-body: #0f172a;
+  --bg-card: #1e293b;
+  --bg-sidebar: #0f172a;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #334155;
+  --accent: #60a5fa;
+}
+
+.theme-glass {
+  --bg-body: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --bg-sidebar: rgba(15, 23, 42, 0.8);
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --accent: #818cf8;
+}
+
+/* ═══ Dark Theme Overrides ═══ */
+.theme-dark body,
+.theme-dark #root,
+.theme-dark {
+  background-color: var(--bg-body) !important;
+  color: var(--text-primary);
+}
+
+.theme-dark .bg-white {
+  background-color: var(--bg-card) !important;
+}
+
+.theme-dark .bg-gray-50 {
+  background-color: var(--bg-card) !important;
+}
+
+.theme-dark .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.theme-dark .text-gray-700,
+.theme-dark .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.theme-dark .text-gray-500,
+.theme-dark .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .border-gray-100,
+.theme-dark .border-gray-200 {
+  border-color: var(--border-color) !important;
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+.theme-dark .animate-spin {
+  border-color: #3b82f6;
+  border-top-color: transparent;
+}
+
+.theme-dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ═══ Glass Theme Overrides ═══ */
+.theme-glass body,
+.theme-glass #root,
+.theme-glass {
+  background: var(--bg-body) !important;
+  color: var(--text-primary);
+}
+
+.theme-glass .bg-white {
+  background-color: var(--bg-card) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-glass .bg-gray-50 {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.theme-glass .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.theme-glass .text-gray-700,
+.theme-glass .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+.theme-glass .text-gray-500,
+.theme-glass .text-gray-400 {
+  color: var(--text-muted) !important;
+}
+
+.theme-glass .border-gray-100,
+.theme-glass .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-glass input,
+.theme-glass select,
+.theme-glass textarea {
+  background-color: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f1f5f9 !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.theme-glass .shadow-sm {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
