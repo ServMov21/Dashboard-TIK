@@ -1,7 +1,7 @@
 import express from 'express'
 import { PrismaClient } from '@prisma/client'
 import authMiddleware from '../middleware/authMiddleware.js'
-import { getXpConfig, getTitleFromXP, DEFAULT_TITLE_CONFIG, applyPenaltiTidakKumpul } from '../utils/xpEngine.js'
+import { getXpConfig, getTitleFromXP, DEFAULT_TITLE_CONFIG, applyPenaltiTidakKumpul, computeXpComponents } from '../utils/xpEngine.js'
 
 const prisma = new PrismaClient()
 const router = express.Router()
@@ -384,12 +384,13 @@ router.post('/refresh', authMiddleware, async (req, res) => {
     if (req.user.role !== 'guru') return res.status(403).json({ message: 'Akses ditolak.' });
     try {
       const xpCfg = await getXpConfig(prisma);
+      
+      // 1. Process pengumpulan (file/link submissions)
       const allPengumpulan = await prisma.pengumpulan.findMany({
         include: { tugas: true }
       });
-      let processed = 0;
+      let processedPengumpulan = 0;
       for (const p of allPengumpulan) {
-        // Hanya hitung bila nilai ada; jika tidak ada nilai, skip dan biarkan xp tetap 0
         if (p.nilai === null || p.nilai === undefined) {
           continue;
         }
@@ -410,9 +411,55 @@ router.post('/refresh', authMiddleware, async (req, res) => {
             xpTotal: newXpTotal,
           },
         });
-        processed++;
+        processedPengumpulan++;
       }
-      res.json({ message: `Berhasil update ${processed} pengumpulan.` });
+
+      // 2. Process pengumpulanMengetik (typing tasks)
+      const allMengetik = await prisma.pengumpulanMengetik.findMany({
+        where: { status: 'selesai' },
+        include: { tugas: true }
+      });
+      let processedMengetik = 0;
+      for (const m of allMengetik) {
+        // Use skorTotal as nilai for typing tasks
+        const nilai = m.skorTotal !== null && m.skorTotal !== undefined ? m.skorTotal : 0;
+        if (nilai === 0) {
+          continue;
+        }
+        const { xpNilai, xpEarly, xpPerfect } = computeXpComponents(xpCfg, {
+          nilai,
+          deadline: m.tugas?.deadline,
+          waktuKumpul: m.waktuSelesai ?? m.createdAt,
+        });
+        const bonus = m.xpBonus ?? 0;
+        const newXpTotal = Math.round(((xpCfg.xpBase || 0) + xpNilai + xpEarly + xpPerfect + bonus) * 10) / 10;
+
+        await prisma.pengumpulanMengetik.update({
+          where: { id: m.id },
+          data: {
+            xpNilai,
+            xpEarly,
+            xpPerfect,
+            xpTotal: newXpTotal,
+          },
+        });
+        processedMengetik++;
+      }
+
+      // 3. Apply penalties for closed tasks (applyPenaltiTidakKumpul is idempotent)
+      const closedTasks = await prisma.tugas.findMany({
+        where: { status: 'ditutup' },
+        select: { id: true, judul: true, jenis: true, kelasTarget: true, rombelTarget: true }
+      });
+      let totalPenaltyApplied = 0;
+      for (const task of closedTasks) {
+        const result = await applyPenaltiTidakKumpul(prisma, task);
+        totalPenaltyApplied += result.applied || 0;
+      }
+
+      res.json({
+        message: `Berhasil update ${processedPengumpulan} pengumpulan, ${processedMengetik} mengetik. Penalti diterapkan ke ${totalPenaltyApplied} siswa.`
+      });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
