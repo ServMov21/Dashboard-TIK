@@ -110,6 +110,29 @@ export default function LeaderboardPage() {
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trophy className="w-4 h-4" />}
             {loading ? 'Memuat...' : 'Tampilkan'}
           </button>
+
+          {isGuru && (
+            <button
+              onClick={async () => {
+                setLoading(true)
+                try {
+                  const res = await apiRequest('/api/xp/refresh', { method: 'POST' })
+                  const json = await res.json()
+                  if (!res.ok) throw new Error(json.message || json.error || 'Gagal refresh XP')
+                  await fetchLeaderboard()
+                } catch (e) {
+                  alert('Gagal refresh XP: ' + e.message)
+                } finally {
+                  setLoading(false)
+                }
+              }}
+              disabled={loading}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-60 transition"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh XP
+            </button>
+          )}
         </div>
       </div>
 

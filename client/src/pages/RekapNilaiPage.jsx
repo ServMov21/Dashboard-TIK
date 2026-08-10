@@ -141,7 +141,7 @@ const RekapNilaiPage = () => {
               </select>
             </div>
           )}
-          <button onClick={fetchRekap} disabled={loading}
+          <button onClick={() => fetchRekap(filterKelas, filterRombel)} disabled={loading}
             className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-60 transition">
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Filter className="w-4 h-4" />}
             {loading ? 'Memuat...' : 'Tampilkan'}
