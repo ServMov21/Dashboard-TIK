@@ -167,6 +167,47 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
+// Tambah satu siswa manual via form
+router.post('/', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'guru') return res.status(403).json({ message: 'Akses ditolak.' })
+  try {
+    const { nama, kelas, rombel, jenisKelamin, tanggalLahir, nis } = req.body
+
+    if (!nama || !String(nama).trim()) return res.status(400).json({ message: 'Nama wajib diisi.' })
+    if (!kelas || !String(kelas).trim()) return res.status(400).json({ message: 'Kelas wajib diisi.' })
+    if (!rombel || !String(rombel).trim()) return res.status(400).json({ message: 'Rombel wajib diisi.' })
+    if (!jenisKelamin || !String(jenisKelamin).trim()) return res.status(400).json({ message: 'Jenis kelamin wajib diisi.' })
+
+    const data = {
+      nama: String(nama).trim(),
+      kelas: String(kelas).trim(),
+      rombel: String(rombel).trim(),
+      jenisKelamin: String(jenisKelamin).trim(),
+      nis: nis && String(nis).trim() ? String(nis).trim() : null,
+    }
+
+    // Password = tanggal lahir (DDMMYYYY), sama seperti flow edit & import Excel
+    if (tanggalLahir) {
+      const d = new Date(tanggalLahir)
+      if (isNaN(d.getTime())) return res.status(400).json({ message: 'Format tanggal lahir tidak valid.' })
+      const day = d.getUTCDate()
+      const month = d.getUTCMonth() + 1
+      const year = d.getUTCFullYear()
+      const dd = String(day).padStart(2, '0')
+      const mm = String(month).padStart(2, '0')
+      data.tanggalLahir = d
+      data.password = `${dd}${mm}${year}`
+    } else {
+      data.password = '123456' // fallback default bila tanggal lahir tidak diisi
+    }
+
+    const siswaBaru = await prisma.siswa.create({ data })
+    res.status(201).json({ message: 'Data siswa berhasil ditambahkan.', siswa: siswaBaru })
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal menambahkan data siswa.', error: error.message })
+  }
+})
+
 router.get('/kelas/list', authMiddleware, async (req, res) => {
   try {
     const rows = await prisma.siswa.findMany({ select: { kelas: true, rombel: true }, distinct: ['kelas', 'rombel'] })

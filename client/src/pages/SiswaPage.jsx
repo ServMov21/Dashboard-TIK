@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Upload, Download, FileSpreadsheet, RefreshCw, Edit, X, Save } from 'lucide-react'
+import { Upload, Download, FileSpreadsheet, RefreshCw, Edit, X, Save, Plus, UserPlus } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 
 const SiswaPage = () => {
@@ -17,6 +17,13 @@ const SiswaPage = () => {
   const [editError, setEditError] = useState('')
   const [editSaving, setEditSaving] = useState(false)
   const [editSuccess, setEditSuccess] = useState('')
+  
+  // State untuk modal tambah siswa
+  const [addingSiswa, setAddingSiswa] = useState(false)
+  const [addForm, setAddForm] = useState({ nama: '', kelas: '', rombel: '', jenisKelamin: 'Laki-laki', tanggalLahir: '', nis: '' })
+  const [addError, setAddError] = useState('')
+  const [addSaving, setAddSaving] = useState(false)
+  const [addSuccess, setAddSuccess] = useState('')
 
   const fetchSiswa = async () => {
     setLoading(true)
@@ -157,10 +164,174 @@ const SiswaPage = () => {
     } finally {
       setEditSaving(false)
     }
+  const handleSaveAdd = async (e) => {
+    e.preventDefault()
+    if (!addForm.nama.trim()) return setAddError('Nama tidak boleh kosong.')
+    if (!addForm.kelas.trim()) return setAddError('Kelas tidak boleh kosong.')
+    if (!addForm.rombel.trim()) return setAddError('Rombel tidak boleh kosong.')
+    if (!addForm.jenisKelamin.trim()) return setAddError('Jenis kelamin wajib dipilih.')
+
+    setAddSaving(true)
+    setAddError('')
+    setAddSuccess('')
+    try {
+      const res = await apiRequest('/api/siswa', {
+        method: 'POST',
+        body: JSON.stringify({
+          nama: addForm.nama.trim(),
+          kelas: addForm.kelas.trim(),
+          rombel: addForm.rombel.trim(),
+          jenisKelamin: addForm.jenisKelamin,
+          tanggalLahir: addForm.tanggalLahir || undefined,
+          nis: addForm.nis.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Gagal menambahkan siswa.')
+
+      setAddSuccess('Data siswa berhasil ditambahkan.')
+      setSiswa(prev => [...prev, data.siswa].sort((a, b) => {
+        if (a.kelas !== b.kelas) return a.kelas.localeCompare(b.kelas)
+        if (a.rombel !== b.rombel) return a.rombel.localeCompare(b.rombel)
+        return a.nama.localeCompare(b.nama)
+      }))
+      
+      setTimeout(() => {
+        setAddingSiswa(false)
+        setAddForm({ nama: '', kelas: '', rombel: '', jenisKelamin: 'Laki-laki', tanggalLahir: '', nis: '' })
+      }, 1000)
+    } catch (e) {
+      setAddError(e.message || 'Gagal menambahkan siswa.')
+    } finally {
+      setAddSaving(false)
+    }
   }
 
   return (
     <div className="p-8">
+      {/* ===== MODAL TAMBAH SISWA ===== */}
+      {addingSiswa && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative max-h-[90vh] overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => setAddingSiswa(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-emerald-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Tambah Siswa Baru</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-6 border-b pb-4">Isi data siswa secara manual satu per satu.</p>
+
+            {addError && (
+              <p className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{addError}</p>
+            )}
+            {addSuccess && (
+              <p className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">{addSuccess}</p>
+            )}
+
+            <form onSubmit={handleSaveAdd} className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700">
+                Nama Lengkap *
+                <input
+                  type="text"
+                  value={addForm.nama}
+                  onChange={e => setAddForm(p => ({ ...p, nama: e.target.value }))}
+                  className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Nama lengkap siswa"
+                  required
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Kelas *
+                  <input
+                    type="text"
+                    value={addForm.kelas}
+                    onChange={e => setAddForm(p => ({ ...p, kelas: e.target.value }))}
+                    className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Mis. 10"
+                    required
+                  />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Rombel *
+                  <input
+                    type="text"
+                    value={addForm.rombel}
+                    onChange={e => setAddForm(p => ({ ...p, rombel: e.target.value }))}
+                    className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Mis. A"
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Jenis Kelamin *
+                  <select
+                    value={addForm.jenisKelamin}
+                    onChange={e => setAddForm(p => ({ ...p, jenisKelamin: e.target.value }))}
+                    className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    required
+                  >
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  NIS (Opsional)
+                  <input
+                    type="text"
+                    value={addForm.nis}
+                    onChange={e => setAddForm(p => ({ ...p, nis: e.target.value }))}
+                    className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="NIS"
+                  />
+                </label>
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700">
+                Tanggal Lahir
+                <input
+                  type="date"
+                  value={addForm.tanggalLahir}
+                  onChange={e => setAddForm(p => ({ ...p, tanggalLahir: e.target.value }))}
+                  className="w-full mt-1 px-4 py-3 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="text-xs text-gray-400 mt-1 block">
+                  Password otomatis disetel ke format DDMMYYYY. Jika dikosongkan, default '123456'.
+                </span>
+              </label>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAddingSiswa(false)}
+                  className="flex-1 py-3 border border-gray-200 rounded-xl font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={addSaving}
+                  className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {addSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {addSaving ? 'Menambahkan...' : 'Tambah Siswa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* ===== MODAL EDIT SISWA ===== */}
       {editingSiswa && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
@@ -261,13 +432,22 @@ const SiswaPage = () => {
           <h1 className="text-2xl font-bold text-gray-800">Data Siswa</h1>
           <p className="text-gray-500 mt-1">Impor atau edit data siswa</p>
         </div>
-        <button
-          type="button"
-          onClick={handleDownloadTemplate}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" /> Download Template
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setAddingSiswa(true)}
+            className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Tambah Siswa
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-blue-700 transition flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Download Template
+          </button>
+        </div>
       </div>
 
       {/* ===== UPLOAD AREA ===== */}
