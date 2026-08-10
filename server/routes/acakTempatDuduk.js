@@ -233,8 +233,8 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
         totalLaki: activeList.filter(isMale).length,
         totalPerempuan: activeList.filter((s) => !isMale(s)).length,
         pasanganWajibTag: taggedPairs.length,
-        pasanganLaki: malePairs.length + taggedPairs.filter((p) => p.gender === 'L').length,
-        pasanganPerempuan: femalePairs.length + taggedPairs.filter((p) => p.gender === 'P').length,
+        pasanganLaki: autoPairsL.length + taggedPairs.filter((p) => p.gender === 'L').length,
+        pasanganPerempuan: autoPairsP.length + taggedPairs.filter((p) => p.gender === 'P').length,
       },
     })
   } catch (error) {
