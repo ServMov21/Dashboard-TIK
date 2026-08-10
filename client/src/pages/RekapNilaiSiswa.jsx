@@ -139,8 +139,8 @@ export default function RekapNilaiSiswa() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label:'Rank Rombel', value: xpData.rankRombel ? `#${xpData.rankRombel}/${xpData.totalRombel}` : '—' },
-                { label:'Rank Kelas', value: xpData.rankKelas ? `#${xpData.rankKelas}/${xpData.totalKelas}` : '—' },
+                { label: siswa ? `Rank Kelas ${siswa.kelas}-${siswa.rombel}` : 'Rank Rombel', value: xpData.rankRombel ? `#${xpData.rankRombel}/${xpData.totalRombel}` : '—' },
+                { label: siswa ? `Rank Kelas ${siswa.kelas}` : 'Rank Kelas', value: xpData.rankKelas ? `#${xpData.rankKelas}/${xpData.totalKelas}` : '—' },
                 { label:'Total Nilai', value: nilaiStats.totalNilai ?? '—' },
                 { label:'Rata-rata', value: nilaiStats.rataRata ?? '—' },
               ].map(item => (

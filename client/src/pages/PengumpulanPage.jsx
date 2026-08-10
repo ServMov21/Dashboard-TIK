@@ -1,146 +1,164 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { apiRequest } from '../utils/api'
-import { Download, CheckCircle, XCircle, FileSpreadsheet, RefreshCw, Eye, Keyboard, X, Trophy } from 'lucide-react'
+import { Download, CheckCircle, XCircle, FileSpreadsheet, RefreshCw, Eye, X, Trophy } from 'lucide-react'
 import { formatDurasi } from '../utils/typingScore'
 import FilePreviewModal from '../components/FilePreviewModal'
 
-// Bentuk label "TUGAS A [KELAS 5B]" dari judul + kelasTarget + rombelTarget
-const formatTugasLabel = (t) => {
-  const kelasTarget = Array.isArray(t.kelasTarget) ? t.kelasTarget : JSON.parse(t.kelasTarget || '[]')
-  const rombelTarget = t.rombelTarget ? (Array.isArray(t.rombelTarget) ? t.rombelTarget : JSON.parse(t.rombelTarget || '[]')) : []
-  if (kelasTarget.length === 0) return t.judul
-  const label = kelasTarget.length === 1 && rombelTarget.length > 0
-    ? `${kelasTarget[0]}${rombelTarget.join('')}`
-    : kelasTarget.join(', ')
-  return `${t.judul} [KELAS ${label}]`
+const parseTargets = (t) => {
+  const kelas = Array.isArray(t.kelasTarget) ? t.kelasTarget : JSON.parse(t.kelasTarget || '[]')
+  const rombel = t.rombelTarget ? (Array.isArray(t.rombelTarget) ? t.rombelTarget : JSON.parse(t.rombelTarget || '[]')) : []
+  return { kelas, rombel }
 }
 
-// Kelompokkan daftar tugas per batchId (satu kali "Tambah Tugas" bisa membuat
-// beberapa baris tugas, satu per kelas/rombel target). Tugas lama tanpa
-// batchId tetap ditampilkan sebagai entri tersendiri (fallback ke id-nya sendiri).
-const groupTugasList = (list) => {
-  const groups = new Map()
-  list.forEach((t) => {
-    const key = t.batchId || `single:${t.id}`
-    if (!groups.has(key)) {
-      groups.set(key, { key, batchId: t.batchId || null, judul: t.judul, rows: [] })
-    }
-    groups.get(key).rows.push(t)
-  })
-  return Array.from(groups.values()).map((g) => {
-    const kelasSet = new Set()
-    const rombelSet = new Set()
-    g.rows.forEach((t) => {
-      const kelasTarget = Array.isArray(t.kelasTarget) ? t.kelasTarget : JSON.parse(t.kelasTarget || '[]')
-      const rombelTarget = t.rombelTarget ? (Array.isArray(t.rombelTarget) ? t.rombelTarget : JSON.parse(t.rombelTarget || '[]')) : []
-      kelasTarget.forEach((k) => kelasSet.add(k))
-      rombelTarget.forEach((r) => rombelSet.add(r))
-    })
-    const kelasLabel = Array.from(kelasSet).join(', ')
-    const rombelLabel = Array.from(rombelSet).join('')
-    const label = g.rows.length > 1
-      ? `${g.judul} [KELAS ${kelasLabel}${rombelLabel ? ` - ${rombelLabel}` : ''}]`
-      : formatTugasLabel(g.rows[0])
-    return { ...g, label }
+const findMatchedRows = (list, judul, kelas, rombel) => {
+  if (!judul) return []
+  return list.filter(t => {
+    if (t.judul !== judul) return false
+    const tgt = parseTargets(t)
+    if (kelas && !tgt.kelas.includes(kelas)) return false
+    if (rombel && !tgt.rombel.includes(rombel)) return false
+    return true
   })
 }
 
 const PengumpulanPage = () => {
   const [tugasList, setTugasList] = useState([])
-  const [groups, setGroups] = useState([])
-  const [selectedKey, setSelectedKey] = useState('')
+  const [selectedJudul, setSelectedJudul] = useState('')
+  const [filterKelas, setFilterKelas] = useState('')
+  const [filterRombel, setFilterRombel] = useState('')
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(false)
   const [previewHasil, setPreviewHasil] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
   const socketRef = useRef(null)
-  const selectedGroupRef = useRef(null)
+  const matchedRowsRef = useRef([])
 
-  const selectedGroup = groups.find((g) => g.key === selectedKey) || null
-  const isMengetikGroup = selectedGroup ? selectedGroup.rows.every((r) => r.jenis === 'mengetik') : false
-  useEffect(() => { selectedGroupRef.current = selectedGroup }, [selectedGroup])
+  // Derived lists
+  const judulList = useMemo(() => {
+    const seen = new Set()
+    return tugasList.reduce((acc, t) => {
+      if (!seen.has(t.judul)) { seen.add(t.judul); acc.push(t.judul) }
+      return acc
+    }, [])
+  }, [tugasList])
 
-  useEffect(() => {
-    fetchTugas()
+  const kelasList = useMemo(() => {
+    const set = new Set()
+    tugasList.filter(t => t.judul === selectedJudul).forEach(t => {
+      parseTargets(t).kelas.forEach(k => set.add(k))
+    })
+    return [...set].sort()
+  }, [selectedJudul, tugasList])
+
+  const rombelList = useMemo(() => {
+    if (!filterKelas) return []
+    const set = new Set()
+    tugasList.filter(t => t.judul === selectedJudul).forEach(t => {
+      const tgt = parseTargets(t)
+      if (tgt.kelas.includes(filterKelas)) tgt.rombel.forEach(r => set.add(r))
+    })
+    return [...set].sort()
+  }, [selectedJudul, filterKelas, tugasList])
+
+  const matchedRows = useMemo(() =>
+    findMatchedRows(tugasList, selectedJudul, filterKelas, filterRombel),
+    [tugasList, selectedJudul, filterKelas, filterRombel]
+  )
+
+  const isMengetik = matchedRows.length > 0 && matchedRows.every(r => r.jenis === 'mengetik')
+  const isNotAssigned = !!(selectedJudul && filterKelas && matchedRows.length === 0)
+
+  useEffect(() => { matchedRowsRef.current = matchedRows }, [matchedRows])
+
+  // --- Fetch helpers ---
+  const doFetch = useCallback(async (rows) => {
+    if (!rows || rows.length === 0) { setSubmissions([]); return }
+    setLoading(true)
+    try {
+      let allData = []
+      const mengetik = rows.every(r => r.jenis === 'mengetik')
+      for (const row of rows) {
+        const endpoint = mengetik
+          ? `/api/pengumpulan-mengetik/status/${row.id}`
+          : `/api/pengumpulan/status/${row.id}`
+        const res = await apiRequest(endpoint)
+        const json = await res.json()
+        const arr = Array.isArray(json) ? json : (json?.siswa || [])
+        allData = allData.concat(arr)
+      }
+      setSubmissions(allData)
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }, [])
 
-  useEffect(() => {
-    if (selectedKey) fetchStatus()
-  }, [selectedKey])
+  // --- Handlers (no cascading effects) ---
+  const handleJudulChange = (judul) => {
+    setSelectedJudul(judul)
+    setFilterKelas('')
+    setFilterRombel('')
+    const rows = findMatchedRows(tugasList, judul, '', '')
+    doFetch(rows)
+  }
 
-  // Auto-refresh saat ada siswa yang baru saja mengirimkan/memperbarui tugas
+  const handleKelasChange = (kelas) => {
+    setFilterKelas(kelas)
+    setFilterRombel('')
+    const rows = findMatchedRows(tugasList, selectedJudul, kelas, '')
+    doFetch(rows)
+  }
+
+  const handleRombelChange = (rombel) => {
+    setFilterRombel(rombel)
+    const rows = findMatchedRows(tugasList, selectedJudul, filterKelas, rombel)
+    doFetch(rows)
+  }
+
+  const handleRefresh = () => doFetch(matchedRows)
+
+  // --- Init ---
   useEffect(() => {
-    socketRef.current = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
-    })
+    const init = async () => {
+      try {
+        const res = await apiRequest('/api/tugas')
+        const data = await res.json()
+        setTugasList(data)
+        if (data.length > 0) {
+          const firstJudul = data[0].judul
+          setSelectedJudul(firstJudul)
+          const rows = findMatchedRows(data, firstJudul, '', '')
+          doFetch(rows)
+        }
+      } catch (e) { console.error(e) }
+    }
+    init()
+  }, [doFetch])
+
+  // Socket auto-refresh
+  useEffect(() => {
+    socketRef.current = io(window.location.origin, { transports: ['websocket', 'polling'] })
     const socket = socketRef.current
-
     const handleUpdate = (data) => {
-      const group = selectedGroupRef.current
-      if (group && data?.tugasId && group.rows.some((r) => r.id === data.tugasId)) fetchStatus()
+      const rows = matchedRowsRef.current
+      if (rows.length > 0 && data?.tugasId && rows.some(r => r.id === data.tugasId)) doFetch(rows)
     }
     socket.on('pengumpulan-baru', handleUpdate)
     socket.on('pengumpulan-update', handleUpdate)
     socket.on('pengumpulan-mengetik-update', handleUpdate)
+    return () => { socket.disconnect(); socketRef.current = null }
+  }, [doFetch])
 
-    return () => {
-      socket.disconnect()
-      socketRef.current = null
-    }
-  }, [])
-
-  const fetchTugas = async () => {
-    try {
-      const res = await apiRequest('/api/tugas')
-      const data = await res.json()
-      setTugasList(data)
-      const grouped = groupTugasList(data)
-      setGroups(grouped)
-      if (grouped.length > 0) setSelectedKey(grouped[0].key)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  const fetchStatus = async () => {
-    const group = groups.find((g) => g.key === selectedKey)
-    if (!group) return
-    setLoading(true)
-    try {
-      let data
-      const isMengetik = group.rows.every((r) => r.jenis === 'mengetik')
-      if (isMengetik && group.batchId) {
-        const res = await apiRequest(`/api/pengumpulan-mengetik/status-batch/${group.batchId}`)
-        data = await res.json()
-      } else if (isMengetik) {
-        const res = await apiRequest(`/api/pengumpulan-mengetik/status/${group.rows[0].id}`)
-        data = await res.json()
-      } else if (group.batchId) {
-        const res = await apiRequest(`/api/pengumpulan/status-batch/${group.batchId}`)
-        const json = await res.json()
-        data = json.siswa || []
-      } else {
-        const res = await apiRequest(`/api/pengumpulan/status/${group.rows[0].id}`)
-        data = await res.json()
-      }
-      setSubmissions(data)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // --- Progress ---
   const progress = useMemo(() => {
     const total = submissions.length
-    const collected = isMengetikGroup
-      ? submissions.filter((s) => s.status === 'selesai').length
-      : submissions.filter((s) => s.sudahUpload).length
+    const collected = isMengetik
+      ? submissions.filter(s => s.status === 'selesai').length
+      : submissions.filter(s => s.sudahUpload).length
     const percent = total > 0 ? Math.round((collected / total) * 100) : 0
     return { total, collected, percent }
-  }, [submissions, isMengetikGroup])
+  }, [submissions, isMengetik])
 
+  // --- Download & Export ---
   const handleDownload = async (pengumpulanId, namaFile) => {
     try {
       const res = await apiRequest(`/api/pengumpulan/download/${pengumpulanId}`)
@@ -148,41 +166,42 @@ const PengumpulanPage = () => {
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = namaFile || 'file'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      a.href = url; a.download = namaFile || 'file'
+      document.body.appendChild(a); a.click(); a.remove()
       window.URL.revokeObjectURL(url)
-    } catch (e) {
-      console.error('Download failed:', e)
-    }
+    } catch (e) { console.error('Download failed:', e) }
   }
 
   const handleExport = async () => {
-    if (!selectedGroup) return
+    if (matchedRows.length === 0) return
     try {
-      const endpoint = isMengetikGroup
-        ? (selectedGroup.batchId
-          ? `/api/pengumpulan-mengetik/export-batch/${selectedGroup.batchId}`
-          : `/api/pengumpulan-mengetik/export/${selectedGroup.rows[0].id}`)
-        : selectedGroup.batchId
-        ? `/api/pengumpulan/export-batch/${selectedGroup.batchId}`
-        : `/api/pengumpulan/export/${selectedGroup.rows[0].id}`
+      // If all matched rows share a batchId, use batch export
+      const batchId = matchedRows[0]?.batchId
+      const allSameBatch = batchId && matchedRows.every(r => r.batchId === batchId)
+      let endpoint
+      if (allSameBatch) {
+        endpoint = isMengetik
+          ? `/api/pengumpulan-mengetik/export-batch/${batchId}`
+          : `/api/pengumpulan/export-batch/${batchId}`
+      } else {
+        endpoint = isMengetik
+          ? `/api/pengumpulan-mengetik/export/${matchedRows[0].id}`
+          : `/api/pengumpulan/export/${matchedRows[0].id}`
+      }
       const res = await apiRequest(endpoint)
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = `rekap-pengumpulan.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      a.href = url; a.download = 'rekap-pengumpulan.xlsx'
+      document.body.appendChild(a); a.click(); a.remove()
       window.URL.revokeObjectURL(url)
-    } catch (e) {
-      console.error('Export failed:', e)
-    }
+    } catch (e) { console.error('Export failed:', e) }
   }
+
+  // --- Render ---
+  const filterLabel = filterKelas
+    ? (filterRombel ? `Kelas ${filterKelas}-${filterRombel}` : `Kelas ${filterKelas}`)
+    : 'Semua Kelas'
 
   return (
     <div className="p-8">
@@ -193,17 +212,43 @@ const PengumpulanPage = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center flex-wrap gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Dropdown Judul */}
             <select
-              value={selectedKey}
-              onChange={(e) => setSelectedKey(e.target.value)}
-              className="border border-gray-200 rounded-xl px-4 py-2 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 min-w-[260px]"
+              value={selectedJudul}
+              onChange={(e) => handleJudulChange(e.target.value)}
+              className="border border-gray-200 rounded-xl px-4 py-2 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
             >
               <option value="">Pilih Tugas</option>
-              {groups.map(g => <option key={g.key} value={g.key}>{g.label}</option>)}
+              {judulList.map(j => <option key={j} value={j}>{j}</option>)}
             </select>
+
+            {/* Filter Kelas */}
+            {selectedJudul && kelasList.length > 0 && (
+              <select
+                value={filterKelas}
+                onChange={(e) => handleKelasChange(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Semua Kelas</option>
+                {kelasList.map(k => <option key={k} value={k}>Kelas {k}</option>)}
+              </select>
+            )}
+
+            {/* Filter Rombel */}
+            {filterKelas && rombelList.length > 0 && (
+              <select
+                value={filterRombel}
+                onChange={(e) => handleRombelChange(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-2 bg-white text-sm font-medium outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Semua Rombel</option>
+                {rombelList.map(r => <option key={r} value={r}>Rombel {r}</option>)}
+              </select>
+            )}
+
             <button
-              onClick={fetchStatus}
+              onClick={handleRefresh}
               className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition"
               title="Refresh Data"
             >
@@ -212,17 +257,28 @@ const PengumpulanPage = () => {
           </div>
           <button
             onClick={handleExport}
-            disabled={!selectedKey || loading}
+            disabled={matchedRows.length === 0 || loading}
             className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-700 transition flex items-center gap-2 shadow-lg shadow-green-100 disabled:opacity-50"
           >
             <FileSpreadsheet className="w-4 h-4" /> Download Rekap (Excel)
           </button>
         </div>
 
-        {selectedKey && !loading && submissions.length > 0 && (
+        {/* Not assigned message */}
+        {isNotAssigned && (
+          <div className="px-6 py-12 text-center">
+            <div className="text-4xl mb-3">🚫</div>
+            <p className="text-gray-500 font-semibold text-lg">
+              JUDUL TUGAS '{selectedJudul}' TIDAK DIBERIKAN UNTUK KELAS {filterKelas}{filterRombel ? `-${filterRombel}` : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {!isNotAssigned && selectedJudul && !loading && submissions.length > 0 && (
           <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
             <div className="flex justify-between text-sm mb-2">
-              <span className="font-medium text-gray-600">Progres Pengumpulan (Kelas + Rombel ini)</span>
+              <span className="font-medium text-gray-600">Progres Pengumpulan ({filterLabel})</span>
               <span className="font-bold text-blue-600">{progress.percent}% ({progress.collected}/{progress.total} siswa)</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5">
@@ -231,120 +287,111 @@ const PengumpulanPage = () => {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b border-gray-100">
-                <th className="px-6 py-4">Nama</th>
-                <th className="px-6 py-4">Kelas</th>
-                <th className="px-6 py-4">Status</th>
-                {isMengetikGroup ? (
-                  <>
-                    <th className="px-6 py-4">Waktu</th>
-                    <th className="px-6 py-4 text-right">Kebenaran</th>
-                    <th className="px-6 py-4 text-right">Kecepatan</th>
-                    <th className="px-6 py-4 text-right">Total</th>
-                  </>
-                ) : (
-                  <>
-                    <th className="px-6 py-4">Jam Upload</th>
-                    <th className="px-6 py-4">Nama File</th>
-                    <th className="px-6 py-4">Ukuran</th>
-                  </>
-                )}
-                <th className="px-6 py-4">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={isMengetikGroup ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Memuat data pengumpulan...</td>
+        {/* Table */}
+        {!isNotAssigned && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 text-[10px] font-bold uppercase tracking-widest border-b border-gray-100">
+                  <th className="px-6 py-4">Nama</th>
+                  <th className="px-6 py-4">Kelas</th>
+                  <th className="px-6 py-4">Status</th>
+                  {isMengetik ? (
+                    <>
+                      <th className="px-6 py-4">Waktu</th>
+                      <th className="px-6 py-4 text-right">Kebenaran</th>
+                      <th className="px-6 py-4 text-right">Kecepatan</th>
+                      <th className="px-6 py-4 text-right">Total</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-6 py-4">Jam Upload</th>
+                      <th className="px-6 py-4">Nama File</th>
+                      <th className="px-6 py-4">Ukuran</th>
+                    </>
+                  )}
+                  <th className="px-6 py-4">Aksi</th>
                 </tr>
-              ) : submissions.length === 0 ? (
-                <tr>
-                  <td colSpan={isMengetikGroup ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Belum ada data untuk tugas ini.</td>
-                </tr>
-              ) : isMengetikGroup ? (
-                submissions.map((sub) => (
-                  <tr key={`${sub.tugasId || ''}-${sub.siswaId}`} className="hover:bg-gray-50 transition group">
-                    <td className="px-6 py-4 font-bold text-gray-800">{sub.nama}</td>
-                    <td className="px-6 py-4 text-gray-600 font-medium">{sub.kelas}{sub.rombel}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                        sub.status === 'selesai' ? 'bg-green-50 text-green-600 border-green-100'
-                          : sub.status === 'mengerjakan' ? 'bg-yellow-50 text-yellow-600 border-yellow-100 animate-pulse'
-                          : 'bg-red-50 text-red-600 border-red-100'
-                      }`}>
-                        {sub.status === 'selesai' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        {sub.status === 'selesai' ? 'Selesai' : sub.status === 'mengerjakan' ? 'Mengerjakan' : 'Belum Mulai'}
-                      </span>
-                      {sub.peringkatKecepatan === 1 && <Trophy className="inline w-3.5 h-3.5 text-yellow-500 ml-1" />}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDurasi(sub.durasiDetik)}</td>
-                    <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKebenaran : '-'}</td>
-                    <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKecepatan : '-'}</td>
-                    <td className="px-6 py-4 text-right font-bold text-blue-600">{sub.status === 'selesai' ? sub.skorTotal : '-'}</td>
-                    <td className="px-6 py-4">
-                      {sub.status === 'selesai' && (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewHasil(sub)}
-                          className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition flex items-center justify-center w-fit"
-                          title="Lihat hasil ketikan"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      )}
-                    </td>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {loading ? (
+                  <tr>
+                    <td colSpan={isMengetik ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Memuat data pengumpulan...</td>
                   </tr>
-                ))
-              ) : (
-                submissions.map((sub) => (
-                  <tr key={`${sub.tugasId || ''}-${sub.siswaId || sub.id}`} className="hover:bg-gray-50 transition group">
-                    <td className="px-6 py-4 font-bold text-gray-800">{sub.nama}</td>
-                    <td className="px-6 py-4 text-gray-600 font-medium">{sub.kelas}{sub.rombel}</td>
-                    <td className="px-6 py-4">
-                      {sub.sudahUpload ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-600 uppercase tracking-wider border border-green-100">
-                          <CheckCircle className="w-3 h-3" /> Sudah
+                ) : submissions.length === 0 ? (
+                  <tr>
+                    <td colSpan={isMengetik ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Belum ada data untuk tugas ini.</td>
+                  </tr>
+                ) : isMengetik ? (
+                  submissions.map((sub) => (
+                    <tr key={`${sub.tugasId || ''}-${sub.siswaId}`} className="hover:bg-gray-50 transition group">
+                      <td className="px-6 py-4 font-bold text-gray-800">{sub.nama}</td>
+                      <td className="px-6 py-4 text-gray-600 font-medium">{sub.kelas}-{sub.rombel}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          sub.status === 'selesai' ? 'bg-green-50 text-green-600 border-green-100'
+                            : sub.status === 'mengerjakan' ? 'bg-yellow-50 text-yellow-600 border-yellow-100 animate-pulse'
+                            : 'bg-red-50 text-red-600 border-red-100'
+                        }`}>
+                          {sub.status === 'selesai' ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                          {sub.status === 'selesai' ? 'Selesai' : sub.status === 'mengerjakan' ? 'Mengerjakan' : 'Belum Mulai'}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-600 uppercase tracking-wider border border-red-100">
-                          <XCircle className="w-3 h-3" /> Belum
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{sub.jamUpload ? new Date(sub.jamUpload).toLocaleTimeString('id-ID') : '-'}</td>
-                    <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]" title={sub.namaFile}>{sub.namaFile || '-'}</td>
-                    <td className="px-6 py-4 text-gray-500">{sub.ukuran ? `${(sub.ukuran / 1024).toFixed(1)} KB` : '-'}</td>
-                    <td className="px-6 py-4">
-                      {sub.sudahUpload && sub.pengumpulanId && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewFile(sub)}
-                            className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition flex items-center justify-center w-fit"
-                            title="Pratinjau File"
-                          >
+                        {sub.peringkatKecepatan === 1 && <Trophy className="inline w-3.5 h-3.5 text-yellow-500 ml-1" />}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">{formatDurasi(sub.durasiDetik)}</td>
+                      <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKebenaran : '-'}</td>
+                      <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKecepatan : '-'}</td>
+                      <td className="px-6 py-4 text-right font-bold text-blue-600">{sub.status === 'selesai' ? sub.skorTotal : '-'}</td>
+                      <td className="px-6 py-4">
+                        {sub.status === 'selesai' && (
+                          <button type="button" onClick={() => setPreviewHasil(sub)}
+                            className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition flex items-center justify-center w-fit" title="Lihat hasil ketikan">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(sub.pengumpulanId, sub.namaFile)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition flex items-center justify-center w-fit"
-                            title="Download File"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  submissions.map((sub) => (
+                    <tr key={`${sub.tugasId || ''}-${sub.siswaId || sub.id}`} className="hover:bg-gray-50 transition group">
+                      <td className="px-6 py-4 font-bold text-gray-800">{sub.nama}</td>
+                      <td className="px-6 py-4 text-gray-600 font-medium">{sub.kelas}-{sub.rombel}</td>
+                      <td className="px-6 py-4">
+                        {sub.sudahUpload ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-green-50 text-green-600 uppercase tracking-wider border border-green-100">
+                            <CheckCircle className="w-3 h-3" /> Sudah
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-600 uppercase tracking-wider border border-red-100">
+                            <XCircle className="w-3 h-3" /> Belum
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500">{sub.jamUpload ? new Date(sub.jamUpload).toLocaleTimeString('id-ID') : '-'}</td>
+                      <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]" title={sub.namaFile}>{sub.namaFile || '-'}</td>
+                      <td className="px-6 py-4 text-gray-500">{sub.ukuran ? `${(sub.ukuran / 1024).toFixed(1)} KB` : '-'}</td>
+                      <td className="px-6 py-4">
+                        {sub.sudahUpload && sub.pengumpulanId && (
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => setPreviewFile(sub)}
+                              className="p-2 text-gray-500 hover:bg-gray-200 rounded-lg transition flex items-center justify-center w-fit" title="Pratinjau File">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button type="button" onClick={() => handleDownload(sub.pengumpulanId, sub.namaFile)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition flex items-center justify-center w-fit" title="Download File">
+                              <Download className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {previewHasil && (
