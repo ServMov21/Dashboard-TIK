@@ -381,25 +381,41 @@ router.post('/penalti/:tugasId', authMiddleware, async (req, res) => {
 })
 
 router.post('/refresh', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'guru') return res.status(403).json({ message: 'Akses ditolak.' })
-  try {
-    const xpCfg = await getXpConfig(prisma)
-    const pengumpulan = await prisma.pengumpulan.findMany({ include: { tugas: true } })
-    let count = 0
-    for (const p of pengumpulan) {
-      if ((p.xpTotal === 0 || p.xpTotal === null) && p.nilai !== null) {
+    if (req.user.role !== 'guru') return res.status(403).json({ message: 'Akses ditolak.' });
+    try {
+      const xpCfg = await getXpConfig(prisma);
+      const allPengumpulan = await prisma.pengumpulan.findMany({
+        include: { tugas: true }
+      });
+      let processed = 0;
+      for (const p of allPengumpulan) {
+        // Hanya hitung bila nilai ada; jika tidak ada nilai, skip dan biarkan xp tetap 0
+        if (p.nilai === null || p.nilai === undefined) {
+          continue;
+        }
         const { xpNilai, xpEarly, xpPerfect } = computeXpComponents(xpCfg, {
-          nilai: p.nilai, deadline: p.tugas?.deadline, waktuKumpul: p.createdAt,
-        })
+          nilai: p.nilai,
+          deadline: p.tugas?.deadline,
+          waktuKumpul: p.createdAt,
+        });
+        const bonus = p.xpBonus ?? 0;
+        const newXpTotal = Math.round(((xpCfg.xpBase || 0) + xpNilai + xpEarly + xpPerfect + bonus) * 10) / 10;
+
         await prisma.pengumpulan.update({
           where: { id: p.id },
-          data: { xpNilai, xpEarly, xpPerfect, xpTotal: Math.round(((p.xpBase || 0) + xpNilai + xpEarly + xpPerfect + (p.xpBonus || 0)) * 10) / 10 }
-        })
-        count++
+          data: {
+            xpNilai,
+            xpEarly,
+            xpPerfect,
+            xpTotal: newXpTotal,
+          },
+        });
+        processed++;
       }
+      res.json({ message: `Berhasil update ${processed} pengumpulan.` });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
     }
-    res.json({ message: `Berhasil update ${count} pengumpulan.` })
-  } catch (e) { res.status(500).json({ error: e.message }) }
-})
+  });
 
 export default router
