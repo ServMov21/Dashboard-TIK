@@ -49,7 +49,7 @@ function App() {
     setCheckingAuth(false)
   }, [])
 
-  const isPublicPath = (pathname) => pathname === '/login' || pathname.startsWith('/share/')
+  const isPublicPath = (pathname) => pathname === '/login' || pathname.startsWith('/share/') || pathname.startsWith('/s/')
 
   useEffect(() => {
     if (!checkingAuth && !user && !isPublicPath(window.location.pathname)) {
