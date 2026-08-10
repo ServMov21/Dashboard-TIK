@@ -25,18 +25,23 @@ const RekapNilaiPage = () => {
     }).catch(console.error)
   }, [])
 
+  // Auto-load rekap semua kelas saat pertama dibuka (tanpa klik Tampilkan)
+  useEffect(() => { fetchRekap() }, [])
+
   useEffect(() => {
     if (!filterKelas) { setRombelList([]); setFilterRombel(''); return }
     setRombelList(kelasRombelList.filter(r => r.kelas === filterKelas).map(r => r.rombel).sort())
     setFilterRombel('')
   }, [filterKelas, kelasRombelList])
 
-  const fetchRekap = async () => {
+  const fetchRekap = async (overrideKelas, overrideRombel) => {
+    const kelas = overrideKelas !== undefined ? overrideKelas : filterKelas
+    const rombel = overrideRombel !== undefined ? overrideRombel : filterRombel
     setLoading(true); setLoaded(false)
     try {
       const params = new URLSearchParams()
-      if (filterKelas) params.set('kelas', filterKelas)
-      if (filterRombel) params.set('rombel', filterRombel)
+      if (kelas) params.set('kelas', kelas)
+      if (rombel) params.set('rombel', rombel)
       const res = await apiRequest(`/api/nilai/rekap?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)

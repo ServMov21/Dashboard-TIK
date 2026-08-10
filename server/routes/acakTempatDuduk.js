@@ -89,111 +89,155 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
 
     const tidakMasukSet = new Set(tidakMasukIds || [])
     const tidakMasuk = siswaList.filter((s) => tidakMasukSet.has(s.id))
-    // Siswa yang ditag "tidak masuk" tidak ikut diacak sama sekali.
     const activeList = siswaList.filter((s) => !tidakMasukSet.has(s.id))
 
     if (activeList.length === 0) {
-      return res.status(400).json({ message: 'Semua siswa ditandai tidak masuk, tidak ada yang bisa diacak.' })
+      return res.status(400).json({ message: 'Semua siswa ditandai tidak masuk.' })
     }
     if (activeList.length > 32) {
-      return res.status(400).json({ message: 'Maksimal 32 siswa aktif untuk 16 perangkat (2 siswa per perangkat).' })
+      return res.status(400).json({ message: 'Maksimal 32 siswa aktif untuk 16 perangkat.' })
     }
 
     const MAX_DEVICES = 16
     const devices = Array.from({ length: MAX_DEVICES }, (_, i) => ({ id: i + 1, students: [] }))
-    const rightDeviceIndexes = [2, 3, 6, 7, 10, 11, 14, 15]
-    const leftDeviceIndexes = [0, 1, 4, 5, 8, 9, 12, 13]
 
     const sameGender = (a, b) => normalizeGender(a.jenisKelamin) === normalizeGender(b.jenisKelamin)
 
+    // Layout baris fisik:
+    //   [0](kiri) [1](kiri)   [2](kanan) [3](kanan)
+    //   [4](kiri) [5](kiri)   [6](kanan) [7](kanan)
+    //   [8](kiri) [9](kiri)   [10](kanan)[11](kanan)
+    //   [12](kiri)[13](kiri)  [14](kanan)[15](kanan)
+    const rows = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]]
+    const leftOfRow = (r) => [rows[r][0], rows[r][1]]
+    const rightOfRow = (r) => [rows[r][2], rows[r][3]]
+
+    // ── 1. Tagged pairs (wajib berdampingan) ──────────────────────────
     const taggedSet = new Set((mustPairIds || []).filter((id) => !tidakMasukSet.has(id)))
     const tagged = shuffle(activeList.filter((s) => taggedSet.has(s.id)))
     let untagged = shuffle(activeList.filter((s) => !taggedSet.has(s.id)))
 
-    // Siswa yang ditag "wajib berdampingan" HARUS dipasangkan dengan teman
-    // acak yang TIDAK ditag (bukan sesama siswa yang ditag), supaya distribusi
-    // pasangan wajib tetap tersebar dan tidak mengelompok sesama tag.
-    const pairs = []
+    const taggedPairs = [] // { students, gender }
     for (const student of tagged) {
-      const partnerIndex = untagged.findIndex((candidate) => sameGender(student, candidate))
-      if (partnerIndex < 0) {
+      const partnerIdx = untagged.findIndex((c) => sameGender(student, c))
+      if (partnerIdx < 0) {
         return res.status(400).json({
-          message: `${student.nama} ditandai wajib berdampingan, tetapi tidak ada teman (yang tidak ditag) dengan jenis kelamin sama untuk dipasangkan.`,
+          message: `${student.nama} ditandai wajib berdampingan, tidak ada teman dengan jenis kelamin sama.`,
         })
       }
-      const partner = untagged.splice(partnerIndex, 1)[0]
-      pairs.push([student, partner])
+      const partner = untagged.splice(partnerIdx, 1)[0]
+      taggedPairs.push({ students: [student, partner], gender: isMale(student) ? 'L' : 'P' })
     }
-    const taggedPairsCount = pairs.length
 
-    // Sisa siswa (di luar pasangan wajib) yang akan diacak & dipasangkan
-    // secara proporsional sesuai rasio gender.
-    const pool = untagged
-    const poolMale = pool.filter(isMale)
-    const poolFemale = pool.filter((s) => !isMale(s))
-
-    // Berapa pasang TOTAL yang wajib terbentuk supaya semua siswa muat di 16 komputer.
+    // ── 2. Hitung auto-pairs dari sisa ────────────────────────────────
+    const poolMale = untagged.filter(isMale)
+    const poolFemale = untagged.filter((s) => !isMale(s))
     const pairsNeededTotal = Math.max(0, activeList.length - MAX_DEVICES)
-    const minPoolPairs = Math.max(0, pairsNeededTotal - taggedPairsCount)
+    const minPoolPairs = Math.max(0, pairsNeededTotal - taggedPairs.length)
 
     const { malePairs: malePairCount, femalePairs: femalePairCount } = allocatePairs(
-      poolMale.length, poolFemale.length, minPoolPairs, activeList.length > MAX_DEVICES
+      poolMale.length, poolFemale.length, minPoolPairs, activeList.length > MAX_DEVICES,
     )
 
     const shuffledMale = shuffle(poolMale)
     const shuffledFemale = shuffle(poolFemale)
 
-    const poolMalePairs = []
-    for (let i = 0; i < malePairCount; i++) {
-      poolMalePairs.push([shuffledMale.pop(), shuffledMale.pop()])
-    }
-    const poolFemalePairs = []
-    for (let i = 0; i < femalePairCount; i++) {
-      poolFemalePairs.push([shuffledFemale.pop(), shuffledFemale.pop()])
-    }
+    const malePairs = []
+    for (let i = 0; i < malePairCount; i++) malePairs.push({ students: [shuffledMale.pop(), shuffledMale.pop()], gender: 'L' })
+    const femalePairs = []
+    for (let i = 0; i < femalePairCount; i++) femalePairs.push({ students: [shuffledFemale.pop(), shuffledFemale.pop()], gender: 'P' })
 
     const singles = shuffle([...shuffledMale, ...shuffledFemale])
-    const maleSingles = singles.filter(isMale)
-    const femaleSingles = singles.filter((s) => !isMale(s))
-    const orderedSingles = [...maleSingles, ...femaleSingles]
+    let maleSinglesRemaining = singles.filter(isMale).length
+    let femaleSinglesRemaining = singles.filter((s) => !isMale(s)).length
 
-    // Campurkan semua indeks secara acak supaya pasangan menyebar ke kiri & kanan
-    const deviceOrder = shuffle([...leftDeviceIndexes, ...rightDeviceIndexes])
-    let cursor = 0
+    // ── 3. Buat slot template (di mana setiap siswa duduk) ─────────────
+    //    Aturan:
+    //      • Pasangan LAKI → utamakan sisi KIRI
+    //      • Pasangan PEREMPUAN → utamakan sisi KANAN
+    //      • Dalam satu baris, hindari KEDUA sisi berpasangan (pair di kiri & kanan)
+    //      • Siswa sendiri mengisi slot kosong menjaga gender berdekatan
+    const slotPlan = [] // { idx, pair, gender }
+    const used = new Set()
+    const shuffledRows = shuffle([0, 1, 2, 3])
 
-    // Tempatkan pasangan wajib (tag) dulu, lalu pasangan laki-laki, lalu pasangan perempuan.
-    const malePairsAll = shuffle([...pairs.filter((p) => isMale(p[0])), ...poolMalePairs])
-    const femalePairsAll = shuffle([...pairs.filter((p) => !isMale(p[0])), ...poolFemalePairs])
-    const orderedPairs = shuffle([...malePairsAll, ...femalePairsAll])
-
-    for (const pair of orderedPairs) {
-      if (cursor >= deviceOrder.length) break
-      const idx = deviceOrder[cursor]
-      devices[idx].students = pair
-      cursor++
+    function claimSlot(side, rowIdx) {
+      const indices = side === 'left' ? leftOfRow(rowIdx) : rightOfRow(rowIdx)
+      for (const idx of shuffle(indices)) {
+        if (!used.has(idx)) { used.add(idx); return idx }
+      }
+      return null
     }
 
-    // Isi device kosong dengan 1 siswa dulu.
-    for (const student of orderedSingles) {
-      if (cursor >= deviceOrder.length) break
-      const idx = deviceOrder[cursor]
-      if (devices[idx].students.length === 0) {
-        devices[idx].students.push(student)
-        cursor++
+    function placePair(entry) {
+      const preferredSide = entry.gender === 'L' ? 'left' : 'right'
+      const otherSide = preferredSide === 'left' ? 'right' : 'left'
+
+      // Coba sisi utama dulu (1 per baris, hindari double-pair)
+      for (const r of shuffledRows) {
+        const idx = claimSlot(preferredSide, r)
+        if (idx !== null) { slotPlan.push({ idx, pair: true, gender: entry.gender }); return }
+      }
+      // Fallback: sisi lain
+      for (const r of shuffledRows) {
+        const idx = claimSlot(otherSide, r)
+        if (idx !== null) { slotPlan.push({ idx, pair: true, gender: entry.gender }); return }
       }
     }
 
-    // Overflow (kalau masih ada sisa siswa tapi device sudah habis dipakai untuk single),
-    // masukkan ke device yang baru terisi 1 siswa dengan gender sama.
-    const placedIds = new Set(devices.flatMap((d) => d.students.map((s) => s.id)))
-    const overflow = orderedSingles.filter((s) => !placedIds.has(s.id))
+    // Tempatkan tagged pairs dulu (hormati gender)
+    for (const tp of shuffle(taggedPairs)) placePair(tp)
+    // Lalu pasangan laki-laki (utamakan kiri)
+    for (const mp of shuffle(malePairs)) placePair(mp)
+    // Lalu pasangan perempuan (utamakan kanan)
+    for (const fp of shuffle(femalePairs)) placePair(fp)
+
+    // Isi slot single — laki di kiri, perempuan di kanan
+    const remainingLeft = []
+    const remainingRight = []
+    for (const r of [0, 1, 2, 3]) {
+      for (const idx of leftOfRow(r)) if (!used.has(idx)) remainingLeft.push(idx)
+      for (const idx of rightOfRow(r)) if (!used.has(idx)) remainingRight.push(idx)
+    }
+
+    for (const idx of shuffle(remainingLeft)) {
+      if (maleSinglesRemaining > 0) { slotPlan.push({ idx, pair: false, gender: 'L' }); maleSinglesRemaining--; used.add(idx) }
+      else if (femaleSinglesRemaining > 0) { slotPlan.push({ idx, pair: false, gender: 'P' }); femaleSinglesRemaining--; used.add(idx) }
+    }
+    for (const idx of shuffle(remainingRight)) {
+      if (femaleSinglesRemaining > 0) { slotPlan.push({ idx, pair: false, gender: 'P' }); femaleSinglesRemaining--; used.add(idx) }
+      else if (maleSinglesRemaining > 0) { slotPlan.push({ idx, pair: false, gender: 'L' }); maleSinglesRemaining--; used.add(idx) }
+    }
+
+    // ── 4. Isi devices berdasarkan slotPlan ────────────────────────────
+    const malePool = shuffle(singles.filter(isMale))
+    const femalePool = shuffle(singles.filter((s) => !isMale(s)))
+
+    for (const slot of slotPlan) {
+      if (slot.pair) {
+        const pool = slot.gender === 'L' ? malePool : femalePool
+        if (pool.length >= 2) {
+          devices[slot.idx].students = [pool.pop(), pool.pop()]
+        } else {
+          // Fallback: ambil dari pool manapun
+          const a = malePool.pop() || femalePool.pop()
+          const b = malePool.pop() || femalePool.pop()
+          devices[slot.idx].students = [a, b].filter(Boolean)
+        }
+      } else {
+        const pool = slot.gender === 'L' ? malePool : femalePool
+        const s = pool.pop() || (slot.gender === 'L' ? femalePool.pop() : malePool.pop())
+        if (s) devices[slot.idx].students = [s]
+      }
+    }
+
+    // Overflow: sisa yang belum kebagian slot
+    const overflow = [...malePool, ...femalePool]
     if (overflow.length > 0) {
       const available = shuffle(devices.filter((d) => d.students.length === 1))
       for (const student of overflow) {
-        const matchIndex = available.findIndex((device) => sameGender(device.students[0], student))
-        if (matchIndex < 0) continue
-        const device = available.splice(matchIndex, 1)[0]
-        device.students.push(student)
+        const matchIdx = available.findIndex((d) => sameGender(d.students[0], student))
+        if (matchIdx >= 0) available.splice(matchIdx, 1)[0].students.push(student)
       }
     }
 
@@ -205,9 +249,9 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
         totalAktif: activeList.length,
         totalLaki: activeList.filter(isMale).length,
         totalPerempuan: activeList.filter((s) => !isMale(s)).length,
-        pasanganWajibTag: taggedPairsCount,
-        pasanganLaki: malePairsAll.length,
-        pasanganPerempuan: femalePairsAll.length,
+        pasanganWajibTag: taggedPairs.length,
+        pasanganLaki: malePairs.length + taggedPairs.filter((p) => p.gender === 'L').length,
+        pasanganPerempuan: femalePairs.length + taggedPairs.filter((p) => p.gender === 'P').length,
       },
     })
   } catch (error) {

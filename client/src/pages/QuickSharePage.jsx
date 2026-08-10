@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
-import { Plus, Zap, Clock, Trash2, Copy, QrCode, X, File, Download, Loader2, Users } from 'lucide-react'
+import { Plus, Zap, Clock, Trash2, Copy, QrCode, X, File, Download, Loader2, Users, ExternalLink } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import { useLanOrigin } from '../utils/lanOrigin'
 
@@ -176,8 +176,11 @@ const QuickSharePage = () => {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => handleCopy(room.kode)} className="flex-1 py-2 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-100 transition flex items-center justify-center gap-1.5">
-                  <Copy className="w-4 h-4" /> {copiedKode === room.kode ? 'Tersalin!' : 'Copy Link'}
+                <button onClick={() => handleCopy(room.kode)} title="Copy Link" className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition">
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button onClick={() => window.open(shareLink(room.kode), '_blank')} title="Open Link" className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition">
+                  <ExternalLink className="w-4 h-4" />
                 </button>
                 <button onClick={() => setQrKode(room.kode)} className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition">
                   <QrCode className="w-4 h-4" />

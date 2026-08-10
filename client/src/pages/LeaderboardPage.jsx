@@ -28,9 +28,13 @@ export default function LeaderboardPage() {
     apiRequest(`/api/siswa/login-rombel?kelas=${encodeURIComponent(filterKelas)}`).then(r => r.json()).then(d => { if (Array.isArray(d)) setRombelList(d) }).catch(console.error)
   }, [filterKelas])
 
-  // Auto-load for siswa
+  // Auto-load for siswa / guru
   useEffect(() => {
-    if (!isGuru && user.kelas) fetchLeaderboard()
+    if (!isGuru && user.kelas) {
+      fetchLeaderboard()
+    } else if (isGuru) {
+      fetchLeaderboard()
+    }
   }, [tab])
 
   const fetchLeaderboard = async () => {
