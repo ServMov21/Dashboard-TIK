@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
-import { Plus, Zap, Clock, Trash2, Copy, QrCode, X, File, Download, Loader2, Users, ExternalLink } from 'lucide-react'
+import { Plus, Zap, Clock, Trash2, Copy, QrCode, X, File, Download, Loader2, Users, ExternalLink, FileImage, FileAudio, FileText, FileSpreadsheet, FileQuestion, Eye } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import { useLanOrigin } from '../utils/lanOrigin'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
 
 const formatBytes = (bytes) => {
   if (!bytes && bytes !== 0) return '-'
@@ -37,6 +39,11 @@ const QuickSharePage = () => {
 
   const [detailRoom, setDetailRoom] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewContent, setPreviewContent] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => { fetchRooms() }, [])
 
@@ -130,6 +137,59 @@ const QuickSharePage = () => {
       window.URL.revokeObjectURL(url)
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const getFileIcon = (fileName) => {
+    const ext = fileName.split('.').pop().toLowerCase()
+    switch (ext) {
+      case 'jpg': case 'jpeg': case 'png': case 'gif': return <FileImage className="w-4 h-4" />
+      case 'mp3': case 'wav': return <FileAudio className="w-4 h-4" />
+      case 'doc': case 'docx': case 'txt': return <FileText className="w-4 h-4" />
+      case 'xls': case 'xlsx': return <FileSpreadsheet className="w-4 h-4" />
+      case 'ppt': case 'pptx': return <File className="w-4 h-4" />
+      default: return <FileQuestion className="w-4 h-4" />
+    }
+  }
+
+  const handlePreview = async (file) => {
+    setPreviewFile(file)
+    setPreviewContent('')
+    setPreviewLoading(true)
+    setShowPreviewModal(true)
+
+    try {
+      const res = await apiRequest(`/api/quickshare/public/${detailRoom.kode}/preview/${file.id}`, { skipAuthRedirect: true })
+      if (!res.ok) throw new Error('Gagal menampilkan preview.')
+      
+      const blob = await res.blob()
+      const fileType = blob.type
+      const fileExt = file.namaFile.split('.').pop().toLowerCase()
+
+      if (fileType.startsWith('image/')) {
+        setPreviewContent(`<img src="${URL.createObjectURL(blob)}" class="max-w-full h-auto mx-auto rounded-lg" />`)
+      } else if (fileType.startsWith('audio/')) {
+        setPreviewContent(`<audio controls src="${URL.createObjectURL(blob)}" class="w-full"></audio>`)
+      } else if (fileType === 'application/pdf') {
+        setPreviewContent(`<iframe src="${URL.createObjectURL(blob)}" class="w-full h-96"></iframe>`)
+      } else if (['doc', 'docx'].includes(fileExt)) {
+        const arrayBuffer = await blob.arrayBuffer()
+        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+        setPreviewContent(`<div class="doc-preview p-4 border rounded-lg bg-gray-50 overflow-auto max-h-96">${result.value}</div>`)
+      } else if (['xls', 'xlsx'].includes(fileExt)) {
+        const arrayBuffer = await blob.arrayBuffer()
+        const data = new Uint8Array(arrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const html = XLSX.utils.sheet_to_html(workbook.Sheets[sheetName], { id: 'excel-table', raw: true })
+        setPreviewContent(`<div class="excel-preview p-4 border rounded-lg bg-gray-50 overflow-auto max-h-96">${html}</div>`)
+      } else {
+        setPreviewContent('<p class="text-center text-gray-500">Preview tidak tersedia untuk format ini. Silakan unduh.</p>')
+      }
+    } catch (e) {
+      setPreviewContent(`<p class="text-center text-red-500">Error: ${e.message}</p>`)
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -286,20 +346,57 @@ const QuickSharePage = () => {
               <ul className="space-y-2">
                 {detailRoom.files.map(f => (
                   <li key={f.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{f.namaFile}</p>
-                      <p className="text-xs text-gray-400">
-                        <span className="inline-flex items-center gap-1"><Users className="w-3 h-3" />{f.pengirim}</span>
-                        {' · '}{formatBytes(f.ukuran)}{' · '}{new Date(f.createdAt).toLocaleString('id-ID')}
-                      </p>
+                    <div className="min-w-0 flex items-center gap-2">
+                      {getFileIcon(f.namaFile)}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 truncate">{f.namaFile}</p>
+                        <p className="text-xs text-gray-400">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                            f.tipePengirim === 'HOST' ? 'bg-blue-100 text-blue-800' :
+                            f.tipePengirim === 'SISWA' ? 'bg-green-100 text-green-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {f.tipePengirim}
+                          </span>
+                          {' · '}{formatBytes(f.ukuran)}{' · '}{new Date(f.createdAt).toLocaleString('id-ID')}
+                        </p>
+                      </div>
                     </div>
-                    <button onClick={() => handleDownload(f.id, f.namaFile)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition shrink-0">
-                      <Download className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => handlePreview(f)} className="p-2 text-gray-600 hover:bg-gray-200 rounded-lg transition">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDownload(f.id, f.namaFile)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Preview File */}
+      {showPreviewModal && previewFile && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowPreviewModal(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="font-bold text-gray-800 text-lg truncate">Preview: {previewFile.namaFile}</h2>
+              <button onClick={() => setShowPreviewModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="flex-grow overflow-auto border rounded-xl bg-gray-50 flex items-center justify-center p-4">
+              {previewLoading ? (
+                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: previewContent }} className="w-full" />
+              )}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => handleDownload(previewFile.id, previewFile.namaFile)} className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition">Unduh File</button>
+              <button onClick={() => setShowPreviewModal(false)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-300 transition">Tutup</button>
+            </div>
           </div>
         </div>
       )}

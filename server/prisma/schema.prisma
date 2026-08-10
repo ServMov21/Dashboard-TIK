@@ -157,14 +157,15 @@ model QuickShareRoom {
 }
 
 model QuickShareFile {
-  id        String         @id @default(uuid())
-  roomId    String
-  namaFile  String
-  path      String
-  ukuran    Int
-  pengirim  String
-  createdAt DateTime       @default(now())
-  room      QuickShareRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  id           String         @id @default(uuid())
+  roomId       String
+  namaFile     String
+  path         String
+  ukuran       Int
+  pengirim     String
+  tipePengirim String         @default("GUEST")
+  createdAt    DateTime       @default(now())
+  room         QuickShareRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
 
 model XpSetting {

@@ -3,6 +3,7 @@ import multer from 'multer'
 import { PrismaClient } from '@prisma/client'
 import path from 'path'
 import fs from 'fs/promises'
+import jwt from 'jsonwebtoken'
 import authMiddleware from '../middleware/authMiddleware.js'
 
 const prisma = new PrismaClient()
@@ -205,7 +206,26 @@ router.post('/public/:kode/upload', upload.array('files', 20), async (req, res) 
       }
     }
 
-    const pengirim = (req.body.pengirim || 'Tamu').toString().slice(0, 100)
+    let tipePengirim = 'GUEST'
+    let pengirim = (req.body.pengirim || 'Tamu').toString().slice(0, 100)
+
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1]
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET)
+        if (decoded.id === room.hostId && decoded.role === room.hostRole) {
+          tipePengirim = 'HOST'
+          pengirim = 'Host (Pemilik)'
+        } else if (decoded.role === 'siswa') {
+          tipePengirim = 'SISWA'
+          pengirim = decoded.nama || pengirim
+        }
+      } catch (err) {
+        // Abaikan token jika invalid, set sebagai GUEST
+      }
+    }
+
     const baseDir = await getBaseDir()
     const dir = path.join(baseDir, 'QuickShare', safeName(room.kode))
     await fs.mkdir(dir, { recursive: true })
@@ -221,6 +241,7 @@ router.post('/public/:kode/upload', upload.array('files', 20), async (req, res) 
           path: target,
           ukuran: file.size,
           pengirim,
+          tipePengirim,
         },
       })
       saved.push(record)
@@ -247,7 +268,7 @@ router.get('/public/:kode/files', async (req, res) => {
       if (inputPassword !== room.password) return res.status(401).json({ message: 'Password room salah.' })
     }
     const files = await prisma.quickShareFile.findMany({ where: { roomId: room.id }, orderBy: { createdAt: 'desc' } })
-    res.json(files.map((f) => ({ id: f.id, namaFile: f.namaFile, ukuran: f.ukuran, pengirim: f.pengirim, createdAt: f.createdAt })))
+    res.json(files.map((f) => ({ id: f.id, namaFile: f.namaFile, ukuran: f.ukuran, pengirim: f.pengirim, tipePengirim: f.tipePengirim, createdAt: f.createdAt })))
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil daftar file.', error: error.message })
   }
@@ -271,6 +292,49 @@ router.get('/public/:kode/download/:fileId', async (req, res) => {
     res.download(file.path, file.namaFile)
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengunduh file.', error: error.message })
+  }
+})
+
+// Preview file (inline)
+router.get('/public/:kode/preview/:fileId', async (req, res) => {
+  try {
+    let room = await prisma.quickShareRoom.findUnique({ where: { kode: req.params.kode.toUpperCase() } })
+    if (!room) return res.status(404).json({ message: 'Kode tidak ditemukan.' })
+    room = await withExpiryCheck(room)
+    const file = await prisma.quickShareFile.findFirst({ where: { id: req.params.fileId, roomId: room.id } })
+    if (!file) return res.status(404).json({ message: 'File tidak ditemukan.' })
+
+    const ext = path.extname(file.namaFile).toLowerCase()
+    const mime = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.mp4': 'video/mp4',
+      '.webm': 'video/webm',
+    }[ext] || 'application/octet-stream'
+
+    const absolutePath = path.resolve(file.path)
+    try {
+      await fs.access(absolutePath)
+    } catch {
+      return res.status(404).json({ message: 'File tidak ditemukan di storage.' })
+    }
+
+    res.setHeader('Content-Type', mime)
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.namaFile)}"`)
+    res.sendFile(absolutePath)
+  } catch (e) {
+    res.status(500).json({ message: 'Gagal menampilkan preview.', error: e.message })
   }
 })
 

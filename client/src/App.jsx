@@ -14,6 +14,7 @@ import DetailTugasPage from './pages/DetailTugasPage'
 import FileSharingPage from './pages/FileSharingPage'
 import LocalDiskPage from './pages/LocalDiskPage'
 import QuickShareJoinPage from './pages/QuickShareJoinPage'
+import PublicFileSharingPage from './pages/PublicFileSharingPage'
 import RekapNilaiPage from './pages/RekapNilaiPage'
 import RekapNilaiSiswa from './pages/RekapNilaiSiswa'
 import LeaderboardPage from './pages/LeaderboardPage'
@@ -85,6 +86,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
       <Route path="/s/:kode" element={<QuickShareJoinPage />} />
+      <Route path="/share/:shareId" element={<PublicFileSharingPage />} />
 
       {user?.role === 'guru' && (
         <Route path="/dashboard/*" element={<LayoutWithSidebar><GuruRoutes /></LayoutWithSidebar>} />

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Upload, File, X, CheckCircle2, AlertTriangle, Lock, Download, Send, Clock } from 'lucide-react'
+import { Upload, File, X, CheckCircle2, AlertTriangle, Lock, Download, Send, Clock, FileImage, FileAudio, FileText, FileSpreadsheet, FileQuestion, Eye, Loader2 } from 'lucide-react'
 import { apiRequest } from '../utils/api'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
 
 const formatBytes = (bytes) => {
   if (!bytes && bytes !== 0) return '-'
@@ -28,6 +30,11 @@ const QuickShareJoinPage = () => {
 
   const [sharedFiles, setSharedFiles] = useState([])
   const [loadingShared, setLoadingShared] = useState(false)
+
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewContent, setPreviewContent] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => { fetchRoom() }, [kode])
 
@@ -60,6 +67,59 @@ const QuickShareJoinPage = () => {
       console.error(e)
     } finally {
       setLoadingShared(false)
+    }
+  }
+
+  const getFileIcon = (fileName) => {
+    const ext = fileName.split('.').pop().toLowerCase()
+    switch (ext) {
+      case 'jpg': case 'jpeg': case 'png': case 'gif': return <FileImage className="w-4 h-4" />
+      case 'mp3': case 'wav': return <FileAudio className="w-4 h-4" />
+      case 'doc': case 'docx': case 'txt': return <FileText className="w-4 h-4" />
+      case 'xls': case 'xlsx': return <FileSpreadsheet className="w-4 h-4" />
+      case 'ppt': case 'pptx': return <File className="w-4 h-4" />
+      default: return <FileQuestion className="w-4 h-4" />
+    }
+  }
+
+  const handlePreview = async (file) => {
+    setPreviewFile(file)
+    setPreviewContent('')
+    setPreviewLoading(true)
+    setShowPreviewModal(true)
+
+    try {
+      const res = await apiRequest(`/api/quickshare/public/${kode}/preview/${file.id}${password ? `?password=${encodeURIComponent(password)}` : ''}`, { skipAuthRedirect: true })
+      if (!res.ok) throw new Error('Gagal menampilkan preview.')
+      
+      const blob = await res.blob()
+      const fileType = blob.type
+      const fileExt = file.namaFile.split('.').pop().toLowerCase()
+
+      if (fileType.startsWith('image/')) {
+        setPreviewContent(`<img src="${URL.createObjectURL(blob)}" class="max-w-full h-auto mx-auto rounded-lg" />`)
+      } else if (fileType.startsWith('audio/')) {
+        setPreviewContent(`<audio controls src="${URL.createObjectURL(blob)}" class="w-full"></audio>`)
+      } else if (fileType === 'application/pdf') {
+        setPreviewContent(`<iframe src="${URL.createObjectURL(blob)}" class="w-full h-96"></iframe>`)
+      } else if (['doc', 'docx'].includes(fileExt)) {
+        const arrayBuffer = await blob.arrayBuffer()
+        const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+        setPreviewContent(`<div class="doc-preview p-4 border rounded-lg bg-gray-50 overflow-auto max-h-96">${result.value}</div>`)
+      } else if (['xls', 'xlsx'].includes(fileExt)) {
+        const arrayBuffer = await blob.arrayBuffer()
+        const data = new Uint8Array(arrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const html = XLSX.utils.sheet_to_html(workbook.Sheets[sheetName], { id: 'excel-table', raw: true })
+        setPreviewContent(`<div class="excel-preview p-4 border rounded-lg bg-gray-50 overflow-auto max-h-96">${html}</div>`)
+      } else {
+        setPreviewContent('<p class="text-center text-gray-500">Preview tidak tersedia untuk format ini. Silakan unduh.</p>')
+      }
+    } catch (e) {
+      setPreviewContent(`<p class="text-center text-red-500">Error: ${e.message}</p>`)
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -215,20 +275,59 @@ const QuickShareJoinPage = () => {
                 {sharedFiles.map((f) => (
                   <li key={f.id} className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-700">
                     <span className="flex items-center gap-2 truncate">
-                      <File className="w-4 h-4 text-blue-500 shrink-0" />
+                      {getFileIcon(f.namaFile)}
                       <span className="truncate">{f.namaFile}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                        f.tipePengirim === 'HOST' ? 'bg-blue-100 text-blue-800' :
+                        f.tipePengirim === 'SISWA' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {f.tipePengirim}
+                      </span>
                       <span className="text-gray-400 shrink-0">({formatBytes(f.ukuran)})</span>
                     </span>
-                    <a
-                      href={`/api/quickshare/public/${kode}/download/${f.id}${password ? `?password=${encodeURIComponent(password)}` : ''}`}
-                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition shrink-0"
-                    >
-                      <Download className="w-4 h-4" />
-                    </a>
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => handlePreview(f)} className="p-1.5 text-gray-600 hover:bg-gray-200 rounded-lg transition">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <a
+                        href={`/api/quickshare/public/${kode}/download/${f.id}${password ? `?password=${encodeURIComponent(password)}` : ''}`}
+                        className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition shrink-0"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
+          </div>
+        )}
+
+        {/* Modal: Preview File */}
+        {showPreviewModal && previewFile && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowPreviewModal(false)}>
+            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold text-gray-800 text-lg truncate">Preview: {previewFile.namaFile}</h2>
+                <button onClick={() => setShowPreviewModal(false)}><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+              <div className="flex-grow overflow-auto border rounded-xl bg-gray-50 flex items-center justify-center p-4">
+                {previewLoading ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                ) : (
+                  <div dangerouslySetInnerHTML={{ __html: previewContent }} className="w-full" />
+                )}
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <a
+                  href={`/api/quickshare/public/${kode}/download/${previewFile.id}${password ? `?password=${encodeURIComponent(password)}` : ''}`}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-600 transition"
+                  download
+                >Unduh File</a>
+                <button onClick={() => setShowPreviewModal(false)} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-300 transition">Tutup</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
