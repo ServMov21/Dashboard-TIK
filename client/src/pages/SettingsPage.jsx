@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Save, Globe, Palette, Clock, HardDrive, FolderTree, Files, Zap, SlidersHorizontal } from 'lucide-react';
 import { apiRequest } from '../utils/api';
 
+// ─── Main Component ──────────────────────────────────────────────────────────
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('umum');
   const [form, setForm] = useState({
@@ -18,29 +19,13 @@ const SettingsPage = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // Apply saved theme on mount and set theme class to document.documentElement
+  // Apply theme on component mount and when settings are fetched
   useEffect(() => {
-    const savedTheme = localStorage.getItem('tema') || 'light';
-    setForm(prev => ({ ...prev, tema: savedTheme }));
+    const savedTheme = localStorage.getItem('tema') || form.tema || 'light';
     applyTheme(savedTheme);
   }, []);
 
-  // Apply theme to root element and persist selection
-  const applyTheme = (theme) => {
-    const root = document.documentElement;
-    root.classList.remove('theme-light', 'theme-dark', 'theme-glass');
-    root.classList.add(`theme-${theme}`);
-    localStorage.setItem('tema', theme);
-  };
-
-  // Theme change handler – updates state, applies class, persists
-  const handleChange = (key, value) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-    setMessage('');
-    setError('');
-    if (key === 'tema') applyTheme(value);
-  };
-
+  // Fetch settings from API
   useEffect(() => {
     const fetchSettings = async () => {
       setLoading(true);
@@ -49,9 +34,8 @@ const SettingsPage = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Gagal memuat pengaturan.');
         setForm(data);
-        // Apply stored theme after loading data
-        const savedTheme = localStorage.getItem('tema') || 'light';
-        applyTheme(savedTheme);
+        const themeToApply = localStorage.getItem('tema') || data.tema || 'light';
+        applyTheme(themeToApply);
       } catch (e) {
         setError(e.message || 'Gagal memuat pengaturan.');
       } finally {
@@ -60,6 +44,24 @@ const SettingsPage = () => {
     };
     fetchSettings();
   }, []);
+
+  // Universal theme application logic
+  const applyTheme = (theme) => {
+    const root = document.documentElement;
+    root.classList.remove('theme-light', 'theme-dark', 'theme-glass');
+    root.classList.add(`theme-${theme}`);
+    localStorage.setItem('tema', theme);
+  };
+
+  // Universal form change handler
+  const handleChange = (key, value) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setMessage('');
+    setError('');
+    if (key === 'tema') {
+      applyTheme(value);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -74,7 +76,7 @@ const SettingsPage = () => {
       if (!res.ok) throw new Error(data.message || 'Gagal menyimpan pengaturan.');
       setMessage('Pengaturan berhasil disimpan.');
       setForm(prev => ({ ...prev, ...data }));
-      applyTheme(form.tema); // persist new tema
+      applyTheme(form.tema);
     } catch (e) {
       setError(e.message || 'Gagal menyimpan pengaturan.');
     } finally {
@@ -90,6 +92,14 @@ const SettingsPage = () => {
     );
   }
 
+  const renderTabContent = () => {
+    switch(activeTab) {
+      case 'xp': return <XpSettingsSection apiRequest={apiRequest} />;
+      case 'tampilan': return <TampilanSettingsSection form={form} handleChange={handleChange} />;
+      default: return <GeneralSettingsSection form={form} handleChange={handleChange} message={message} error={error} handleSave={handleSave} saving={saving} />;
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -98,161 +108,133 @@ const SettingsPage = () => {
       </div>
 
       <div className="flex items-center gap-2 mb-6 border-b border-gray-100">
-        <button
-          type="button"
-          onClick={() => setActiveTab('umum')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-xl transition ${\
-            activeTab === 'umum' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'\
-          }`}>
-          <SlidersHorizontal className="w-4 h-4" /> Umum
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('xp')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-xl transition ${\
-            activeTab === 'xp' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'\
-          }`}>
-          <Zap className="w-4 h-4" /> XP & Title
-        </button>
+        <TabButton id="umum" activeTab={activeTab} setActiveTab={setActiveTab} icon={SlidersHorizontal}>Umum</TabButton>
+        <TabButton id="tampilan" activeTab={activeTab} setActiveTab={setActiveTab} icon={Palette}>Tampilan & Sistem</TabButton>
+        <TabButton id="xp" activeTab={activeTab} setActiveTab={setActiveTab} icon={Zap}>XP & Title</TabButton>
       </div>
-
-      {activeTab === 'xp' ? (
-        <XpSettingsSection apiRequest={apiRequest} />
-      ) : (
-        <>
-          {message && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">
-              {message}
-            </div>
-          )}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-              {error}
-            </div>
-          })
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-blue-500" /> Identitas Sekolah
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nama Sekolah</label>
-                  <input
-                    type="text"
-                    value={form.namaSekolah}
-                    onChange={(e) => handleChange('namaSekolah', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="SMP Negeri ..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Alamat Sekolah</label>
-                  <input
-                    type="text"
-                    value={form.alamat}
-                    onChange={(e) => handleChange('alamat', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="Jl. Pendidikan No. 1..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Logo Sekolah</label>
-                  <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <HardDrive className="w-5 h-5 text-green-500" /> Konfigurasi Folder Local Disk
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Root Storage Path</label>
-                  <input
-                    type="text"
-                    value={form.baseDir}
-                    onChange={(e) => handleChange('baseDir', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                    placeholder="D:\\\\Dashboard_TIK\\\\"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Folder Materi</label>
-                  <input type="text" className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="D:\\Dashboard_TIK\\Materi\\\\" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Folder Backup</label>
-                  <input type="text" className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="D:\\Dashboard_TIK\\Backup\\\\" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <FolderTree className="w-5 h-5 text-orange-500" /> Pola Folder Pengumpulan
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Susunan Folder</label>
-                  <select
-                    value={form.submissionFolderPattern}
-                    onChange={(e) => handleChange('submissionFolderPattern', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="KELAS_ROMBEL/NAMA_TUGAS">KELAS_ROMBEL / NAMA TUGAS (Default)</option>
-                    <option value="NAMA_TUGAS/KELAS_ROMBEL">NAMA TUGAS / KELAS_ROMBEL</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Contoh struktur: <code>{`{baseDir}/PengumpulanTugas/5A/Praktik-Word/`}</code>
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Penanganan File Duplikat</label>
-                  <select
-                    value={form.duplicateFileHandling}
-                    onChange={(e) => handleChange('duplicateFileHandling', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  >
-                    <option value="RENAME_INCREMENT">Rename Increment (file (1).ext, (2).ext)</option>
-                    <option value="REPLACE">Replace (timpa file lama)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center items-center gap-4 lg:col-span-2">
-              <p className="text-sm text-gray-500 text-center">
-                Simpan semua perubahan pengaturan sistem
-              </p>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full max-w-md py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Save className="w-5 h-5" /> {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </>
+      
+      {renderTabContent()}
+    </div>
   );
 };
 
+// ─── Tab Button Component ────────────────────────────────────────────────────
+const TabButton = ({ id, activeTab, setActiveTab, icon: Icon, children }) => (
+  <button
+    type="button"
+    onClick={() => setActiveTab(id)}
+    className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-t-xl transition ${
+      activeTab === id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
+    }`}
+  >
+    <Icon className="w-4 h-4" /> {children}
+  </button>
+);
+
+
+// ─── General Settings Section ────────────────────────────────────────────────
+const GeneralSettingsSection = ({ form, handleChange, message, error, handleSave, saving }) => (
+  <>
+    {message && <p className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">{message}</p>}
+    {error && <p className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{error}</p>}
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><Globe className="w-5 h-5 text-blue-500" /> Identitas Sekolah</h2>
+        <div className="space-y-4">
+          <Input label="Nama Sekolah" name="namaSekolah" value={form.namaSekolah} onChange={handleChange} placeholder="SMP Negeri ..." />
+          <Input label="Alamat Sekolah" name="alamat" value={form.alamat} onChange={handleChange} placeholder="Jl. Pendidikan No. 1..." />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo Sekolah</label>
+            <input type="file" className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><HardDrive className="w-5 h-5 text-green-500" /> Konfigurasi Folder Local Disk</h2>
+        <div className="space-y-4">
+          <Input label="Root Storage Path" name="baseDir" value={form.baseDir} onChange={handleChange} placeholder="D:\\Dashboard_TIK\\" />
+          <p className="text-xs text-gray-500 -mt-2">Pastikan path diakhiri dengan double backslash (\\\\) jika di Windows.</p>
+        </div>
+      </div>
+      
+       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><FolderTree className="w-5 h-5 text-orange-500" /> Pola Folder Pengumpulan</h2>
+        <div className="space-y-4">
+          <Select label="Susunan Folder" name="submissionFolderPattern" value={form.submissionFolderPattern} onChange={handleChange} options={[
+            { value: 'KELAS_ROMBEL/NAMA_TUGAS', label: 'KELAS_ROMBEL / NAMA TUGAS' },
+            { value: 'NAMA_TUGAS/KELAS_ROMBEL', label: 'NAMA TUGAS / KELAS_ROMBEL' },
+          ]} />
+          <p className="text-xs text-gray-500 mt-1">Contoh: <code>{form.baseDir}PengumpulanTugas\\5A\\Praktik-Word\\</code></p>
+           <Select label="Penanganan File Duplikat" name="duplicateFileHandling" value={form.duplicateFileHandling} onChange={handleChange} options={[
+            { value: 'RENAME_INCREMENT', label: 'Rename (file(1).ext)' },
+            { value: 'REPLACE', label: 'Replace (timpa file lama)' },
+          ]} />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-center items-center gap-4">
+        <p className="text-sm text-gray-500 text-center">Simpan semua perubahan pengaturan umum.</p>
+        <button type="button" onClick={handleSave} disabled={saving} className="w-full max-w-xs py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
+          <Save className="w-5 h-5" /> {saving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+        </button>
+      </div>
+    </div>
+  </>
+);
+
+// ─── Tampilan Settings Section ───────────────────────────────────────────────
+const TampilanSettingsSection = ({ form, handleChange }) => (
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+    <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><Palette className="w-5 h-5 text-purple-500" /> Tampilan & Sistem</h2>
+    <div className="space-y-6">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Tema Aplikasi</label>
+        <div className="flex items-center gap-2">
+          <ThemeOption name="light" icon="☀️" label="Light" current={form.tema} onChange={handleChange} />
+          <ThemeOption name="dark" icon="🌙" label="Dark" current={form.tema} onChange={handleChange} />
+          <ThemeOption name="glass" icon="💎" label="Glass" current={form.tema} onChange={handleChange} />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Auto Logout (menit)</label>
+        <input
+          type="number"
+          value={form.jamLogout}
+          onChange={(e) => handleChange('jamLogout', parseInt(e.target.value, 10))}
+          className="w-full max-w-xs px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+          placeholder="60"
+        />
+        <p className="text-xs text-gray-500 mt-1">Logout otomatis saat tidak ada aktivitas.</p>
+      </div>
+    </div>
+  </div>
+);
+
+const ThemeOption = ({ name, icon, label, current, onChange }) => (
+  <button
+    onClick={() => onChange('tema', name)}
+    className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
+      current === name ? 'border-blue-500 bg-blue-50 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+    }`}
+  >
+    <div className="text-3xl mb-1">{icon}</div>
+    <div className={`font-bold ${current === name ? 'text-blue-600' : 'text-gray-700'}`}>{label}</div>
+  </button>
+);
+
+
 // ─── XP Settings Section ──────────────────────────────────────────────────────
 const XpSettingsSection = ({ apiRequest: api }) => {
-  const [xpForm, setXpForm] = React.useState({
+  const [xpForm, setXpForm] = useState({
     xpBase: 80, xpNilai70: 20, xpNilai80: 40, xpNilai90: 70, xpNilai100: 100,
     xpEarly: 25, xpPerfect: 70, xpBonusMax: 20, xpPenaltiTidakKumpul: -50,
   });
-  const [saving, setSaving] = React.useState(false);
-  const [msg, setMsg] = React.useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     api('/api/xp/settings').then(r => r.json()).then(d => {
       if (d && !d.message) setXpForm(p => ({ ...p, ...d }));
     }).catch(() => {});
@@ -270,25 +252,26 @@ const XpSettingsSection = ({ apiRequest: api }) => {
   };
 
   const fields = [
-    { key:'xpBase', label:'Base XP (mengumpulkan tugas)', desc:'+80 saat siswa submit' },
-    { key:'xpNilai70', label:'Bonus Nilai 70–79', desc:'tambahan XP' },
-    { key:'xpNilai80', label:'Bonus Nilai 80–89', desc:'tambahan XP' },
-    { key:'xpNilai90', label:'Bonus Nilai 90–99', desc:'tambahan XP' },
-    { key:'xpNilai100', label:'Bonus Nilai 100', desc:'tambahan XP' },
-    { key:'xpEarly', label:'Early Submission', desc:'kumpul sebelum deadline' },
-    { key:'xpPerfect', label:'Perfect Score Bonus', desc:'nilai = 100' },
-    { key:'xpBonusMax', label:'Maks Bonus Guru', desc:'batas bonus manual' },
-    { key:'xpPenaltiTidakKumpul', label:'Penalti Tidak Mengumpulkan', desc:'saat tugas ditutup', negative: true },
+    { key:'xpBase', label:'Base XP (mengumpulkan)', desc:'Diterima saat siswa submit' },
+    { key:'xpNilai70', label:'Bonus Nilai 70–79', desc:'Tambahan XP' },
+    { key:'xpNilai80', label:'Bonus Nilai 80–89', desc:'Tambahan XP' },
+    { key:'xpNilai90', label:'Bonus Nilai 90–99', desc:'Tambahan XP' },
+    { key:'xpNilai100', label:'Bonus Nilai 100', desc:'Tambahan XP' },
+    { key:'xpEarly', label:'Early Submission', desc:'Kumpul sebelum deadline' },
+    { key:'xpPerfect', label:'Perfect Score Bonus', desc:'Jika nilai = 100' },
+    { key:'xpBonusMax', label:'Maks Bonus Guru', desc:'Batas bonus manual' },
+    { key:'xpPenaltiTidakKumpul', label:'Penalti Tidak Kumpul', desc:'Saat tugas ditutup', negative: true },
   ];
 
   const exNilai = xpForm.xpNilai90;
   const exEarly = xpForm.xpEarly;
+  const exTotal = xpForm.xpBase + exNilai + exEarly;
 
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
       <h2 className="text-lg font-bold text-gray-800 mb-1">⚡ Konfigurasi XP & Title</h2>
       <p className="text-sm text-gray-500 mb-6">Atur poin XP yang diperoleh siswa untuk setiap komponen penilaian.</p>
-      {msg && <p className={`mb-4 p-3 rounded-xl text-sm ${msg.startsWith('Gagal') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>{msg}</p>}
+      {msg && <p className={`mb-4 p-3 rounded-xl text-sm ${msg.startsWith('Gagal') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{msg}</p>}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {fields.map(f => (
           <label key={f.key} className="block text-sm font-medium text-gray-700">
@@ -306,15 +289,41 @@ const XpSettingsSection = ({ apiRequest: api }) => {
       <div className="p-4 bg-blue-50 rounded-xl text-sm text-blue-700 mb-4 border border-blue-100">
         <p className="font-semibold mb-1">📊 Contoh Kalkulasi XP:</p>
         <p>Base ({xpForm.xpBase}) + Nilai 90-99 ({exNilai}) + Early Submission ({exEarly}) = <strong className="text-blue-800">{exTotal} XP</strong></p>
-        <p className="mt-1 text-blue-600">Max Perfect: {xpForm.xpBase} + {xpForm.xpNilai100} + {xpForm.xpEarly} + {xpForm.xpPerfect} = <strong>{xpForm.xpBase + xpForm.xpNilai100 + xpForm.xpEarly + xpForm.xpPerfect} XP</strong></p>
-        <p className="mt-1 text-red-600">Tidak mengumpulkan/tidak mengerjakan tugas saat ditutup = <strong>{xpForm.xpPenaltiTidakKumpul} XP</strong></p>
+        <p className="mt-1 text-blue-600">Max Perfect: {xpForm.xpBase + xpForm.xpNilai100 + xpForm.xpEarly + xpForm.xpPerfect} XP</p>
+        <p className="mt-1 text-red-600">Tidak kumpul = {xpForm.xpPenaltiTidakKumpul} XP</p>
       </div>
-      <button onClick={handleSave} disabled={saving}
-        className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition">
+      <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 transition">
         <Save className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Pengaturan XP'}
       </button>
     </div>
   );
-}
+};
 
-export default SettingsPage
+// ─── Generic Form Components ─────────────────────────────────────────────────
+const Input = ({ label, name, value, onChange, placeholder, type = 'text' }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(name, e.target.value)}
+      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+      placeholder={placeholder}
+    />
+  </div>
+);
+
+const Select = ({ label, name, value, onChange, options }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(name, e.target.value)}
+      className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+    >
+      {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+    </select>
+  </div>
+);
+
+export default SettingsPage;

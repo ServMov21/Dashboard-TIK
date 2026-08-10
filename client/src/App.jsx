@@ -38,6 +38,13 @@ function App() {
         localStorage.removeItem('token')
       }
     }
+
+    // Apply saved theme on every app load
+    const savedTheme = localStorage.getItem('tema') || 'light'
+    const root = document.documentElement
+    root.classList.remove('theme-light', 'theme-dark', 'theme-glass')
+    root.classList.add(`theme-${savedTheme}`)
+
     setCheckingAuth(false)
   }, [])
 
