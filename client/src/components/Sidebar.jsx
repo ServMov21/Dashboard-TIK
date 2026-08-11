@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Home, Layout, ClipboardList, Upload, Users,
   Settings, LogOut, HardDrive, Share2, Zap,
-  Menu, X, GraduationCap, Trash2, BarChart2, Trophy, TrendingUp
+  Menu, X, GraduationCap, Trash2, BarChart2, Trophy, TrendingUp, Calendar
 } from 'lucide-react'
 
 const Sidebar = ({ user }) => {
