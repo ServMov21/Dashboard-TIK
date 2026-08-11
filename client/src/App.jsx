@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { TitlePopup } from './utils/titleRank.jsx'
-import { useGlobalTitlePopup } from '../../brain/9d2ca0e6-6572-4010-bc48-1a51d63363ae/useGlobalTitlePopup.js'
+import { useGlobalTitlePopup } from './hooks/useGlobalTitlePopup.js'
 import Sidebar from './components/Sidebar'
 import LoginPage from './pages/LoginPage'
 import DashboardGuru from './pages/DashboardGuru'

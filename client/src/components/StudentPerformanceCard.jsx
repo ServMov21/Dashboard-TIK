@@ -64,16 +64,16 @@ export default function StudentPerformanceCard({ student, x, y }) {
         />
 
         <div
-          className="relative bg-slate-900 text-white rounded-3xl shadow-2xl p-6 min-w-[340px] max-w-[380px] border-2"
+          className="relative bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-3xl shadow-2xl p-6 min-w-[340px] max-w-[380px] border-2"
           style={{ borderColor: title.hex || '#3b82f6', boxShadow: `0 20px 50px -12px rgba(0,0,0,.6), 0 0 20px -4px ${title.hex}55` }}
         >
           {/* SECTION 1: HEADER & IDENTITY */}
-          <div className="flex flex-col items-center text-center pb-4 border-b border-slate-800">
+          <div className="flex flex-col items-center text-center pb-4 border-b border-white/20">
             <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12, duration: 0.3 }}
-              className="text-sm font-medium text-slate-400 flex items-center gap-1.5 mb-2"
+              className="text-sm font-medium text-white/80 flex items-center gap-1.5 mb-2"
             >
               <span>👤</span>
               <span className="tracking-wide uppercase font-bold text-white">{student.nama}</span>
@@ -89,14 +89,14 @@ export default function StudentPerformanceCard({ student, x, y }) {
               <span>{title.emoji}</span>
               <span>{title.name}</span>
             </motion.div>
-            <div className="text-xs font-semibold text-slate-400 mt-0.5">LEVEL {title.level}</div>
+            <div className="text-xs font-semibold text-white/70 mt-0.5">LEVEL {title.level}</div>
 
             <div className="w-full mt-4">
-              <div className="flex justify-between text-[11px] text-slate-400 mb-1.5 font-medium">
+              <div className="flex justify-between text-[11px] text-white/80 mb-1.5 font-medium">
                 <span>⚡ {totalXP} XP</span>
                 <span>{xpMax} XP</span>
               </div>
-              <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div className="w-full bg-white/10 rounded-full h-2.5 overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${xpProgress}%` }}
@@ -115,7 +115,7 @@ export default function StudentPerformanceCard({ student, x, y }) {
                 initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3, duration: 0.3 }}
-                className="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50"
+                className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full border border-white/20"
               >
                 <span>🏆</span>
                 <span>#{student.rankKelas || student.rank || '?'} KELAS {student.kelas}</span>
@@ -124,7 +124,7 @@ export default function StudentPerformanceCard({ student, x, y }) {
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.34, duration: 0.3 }}
-                className="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50"
+                className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-full border border-white/20"
               >
                 <span>🏆</span>
                 <span>#{student.rankRombel || student.rank || '?'} KELAS {student.kelas}-{student.rombel}</span>
@@ -137,22 +137,22 @@ export default function StudentPerformanceCard({ student, x, y }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.38, duration: 0.3 }}
-            className="py-4 border-b border-slate-800"
+            className="py-4 border-b border-white/20"
           >
-            <div className="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-3">
+            <div className="text-xs font-bold text-white/70 tracking-wider flex items-center gap-1.5 mb-3">
               <span>📊</span>
               <span>ACADEMIC PERFORMANCE</span>
             </div>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-white/90">
                 <span>Total Score</span>
                 <strong className="text-white font-bold">{student.total ?? '—'}</strong>
               </div>
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-white/90">
                 <span>Rata-Rata Score</span>
                 <strong className="text-white font-bold">{student.rataRata ?? student.avgNilai ?? '—'}</strong>
               </div>
-              <div className="flex justify-between text-slate-300">
+              <div className="flex justify-between text-white/90">
                 <span>Perfect Score</span>
                 <strong className="text-white font-bold">{student.countNilaiGe90 ?? 0}</strong>
               </div>
@@ -166,7 +166,7 @@ export default function StudentPerformanceCard({ student, x, y }) {
             transition={{ delay: 0.46, duration: 0.3 }}
             className="pt-4"
           >
-            <div className="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-1.5 mb-3">
+            <div className="text-xs font-bold text-white/70 tracking-wider flex items-center gap-1.5 mb-3">
               <span>⚡</span>
               <span>PERJALANAN TITLE</span>
             </div>
@@ -178,14 +178,14 @@ export default function StudentPerformanceCard({ student, x, y }) {
                   <React.Fragment key={t.name}>
                     <div
                       className={`px-1.5 py-0.5 rounded border transition-all duration-300 ${
-                        isCurrent ? 'bg-slate-800 text-white' : 'bg-slate-800/25 text-slate-500 border-transparent'
+                        isCurrent ? 'bg-white text-slate-900' : 'bg-white/10 text-white/60 border-transparent'
                       } ${isCurrent ? 'title-glow' : ''}`}
-                      style={isCurrent ? ({ '--glow': t.hex, borderColor: t.hex }) : {}}
+                      style={isCurrent ? ({ '--glow': 'white', borderColor: 'white' }) : {}}
                     >
                       {t.emoji} {t.name}
                     </div>
                     {i < DEFAULT_TITLE_CONFIG.length - 1 && (
-                      <span className={`mx-1 text-sm leading-none ${isNext ? 'shine-arrow' : 'text-slate-600'}`}>→</span>
+                      <span className={`mx-1 text-sm leading-none ${isNext ? 'shine-arrow' : 'text-white/40'}`}>→</span>
                     )}
                   </React.Fragment>
                 )
