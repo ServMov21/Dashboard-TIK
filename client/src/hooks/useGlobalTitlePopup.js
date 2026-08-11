@@ -25,9 +25,15 @@ export function useGlobalTitlePopup() {
         const storageKey = `prevTitle_${xpData.id || user.id || 'siswa'}`
         const prevTitleName = localStorage.getItem(storageKey)
 
+        console.log('[DEBUG] checkTitle:', { prevTitleName, curTitleName: curTitle.name, totalXP: xpData.totalXP })
+
         if (prevTitleName && prevTitleName !== curTitle.name) {
-          const prevTitle = DEFAULT_TITLE_CONFIG.find(t => t.name === prevTitleName) || DEFAULT_TITLE_CONFIG[0]
-          const isUp = DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===curTitle.name) > DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===prevTitle.name)
+          const prevTitle = tc.find(t => t.name === prevTitleName) || tc[0]
+          const curIndex = tc.findIndex(t=>t.name===curTitle.name)
+          const prevIndex = tc.findIndex(t=>t.name===prevTitle.name)
+          const isUp = curIndex > prevIndex
+
+          console.log('[DEBUG] title diff found:', { prevTitle: prevTitle.name, curTitle: curTitle.name, prevIndex, curIndex, isUp })
           
           if (isUp) {
             setPopupData({
@@ -39,6 +45,7 @@ export function useGlobalTitlePopup() {
           }
           localStorage.setItem(storageKey, curTitle.name)
         } else if (!prevTitleName) {
+          console.log('[DEBUG] initial set title storage:', curTitle.name)
           localStorage.setItem(storageKey, curTitle.name)
         }
       } catch (error) {

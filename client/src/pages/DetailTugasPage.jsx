@@ -287,6 +287,7 @@ const DetailTugasPage = () => {
       if (!res.ok) throw new Error(data.message)
       setMyTyping(data.data)
       // Pemicu pengecekan title global
+      console.log('[DEBUG] dispatching xp-updated event from typing finish')
       window.dispatchEvent(new CustomEvent('xp-updated'))
     } catch (e) {
       setTypingError(e.message)
@@ -409,6 +410,7 @@ const DetailTugasPage = () => {
       setFile(null)
       fetchMySubmission()
       // Pemicu pengecekan title global
+      console.log('[DEBUG] dispatching xp-updated event from file upload')
       window.dispatchEvent(new CustomEvent('xp-updated'))
     } catch (err) {
       setError(err.message)
