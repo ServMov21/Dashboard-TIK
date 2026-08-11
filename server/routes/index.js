@@ -16,6 +16,7 @@ import systemRoutes from './system.js'
 import nilaiRoutes from './nilai.js'
 import sampahRoutes from './sampah.js'
 import kehadiranRoutes from './kehadiran.js'
+import xpRoutes from './xp.js'
 
 const router = express.Router()
 
