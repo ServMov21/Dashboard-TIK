@@ -19,6 +19,7 @@ export default function LeaderboardPage() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [hover, setHover] = useState(null)
 
   // Fetch kelas list
   useEffect(() => {
@@ -195,7 +196,12 @@ export default function LeaderboardPage() {
                       <td className="px-5 py-4 text-center">
                         <span className="text-lg">{MEDAL[entry.rank] || `#${entry.rank}`}</span>
                       </td>
-                      <td className="px-5 py-4">
+                      <td
+                        className="px-5 py-4"
+                        onMouseEnter={e => setHover({ entry, x: e.clientX, y: e.clientY })}
+                        onMouseMove={e => setHover(h => h && h.entry.id === entry.id ? { ...h, x: e.clientX, y: e.clientY } : h)}
+                        onMouseLeave={() => setHover(null)}
+                      >
                         <span className="font-semibold text-gray-800">{entry.nama}</span>
                         {isMe && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Kamu</span>}
                       </td>
@@ -217,6 +223,11 @@ export default function LeaderboardPage() {
             Urutan: Total XP → Rata-rata Nilai → Jumlah Tugas → Nilai ≥90 → Pencapaian Lebih Awal
           </div>
         </div>
+      )}
+      {hover && (
+        <AnimatePresence>
+          <StudentPerformanceCard student={hover.entry} x={hover.x} y={hover.y} />
+        </AnimatePresence>
       )}
     </div>
   )

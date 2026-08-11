@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { Download, RefreshCw, Filter, BarChart2, Search } from 'lucide-react'
 import { apiRequest } from '../utils/api'
-
+import StudentPerformanceCard from '../components/StudentPerformanceCard'
 
 const RekapNilaiPage = () => {
   const [kelasRombelList, setKelasRombelList] = useState([])
@@ -15,6 +16,7 @@ const RekapNilaiPage = () => {
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [hover, setHover] = useState(null)
 
   useEffect(() => {
     apiRequest('/api/nilai/kelas-list').then(r => r.json()).then(data => {
@@ -37,15 +39,22 @@ const RekapNilaiPage = () => {
   const fetchRekap = async (overrideKelas, overrideRombel) => {
     const kelas = overrideKelas !== undefined ? overrideKelas : filterKelas
     const rombel = overrideRombel !== undefined ? overrideRombel : filterRombel
-    setLoading(true); setLoaded(false)
+    setLoading(true); setLoaded(false); setHover(null)
     try {
       const params = new URLSearchParams()
       if (kelas) params.set('kelas', kelas)
       if (rombel) params.set('rombel', rombel)
-      const res = await apiRequest(`/api/nilai/rekap?${params}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message)
-      setTasks(data.tasks || []); setStudents(data.students || []); setLoaded(true)
+      const [rekapRes, xpRes] = await Promise.all([
+        apiRequest(`/api/nilai/rekap?${params}`),
+        apiRequest(`/api/xp/leaderboard?${params}`),
+      ])
+      const data = await rekapRes.json()
+      const xpData = xpRes.ok ? await xpRes.json() : []
+      if (!rekapRes.ok) throw new Error(data.message)
+      const xpById = new Map((Array.isArray(xpData) ? xpData : []).map(s => [s.id, s]))
+      setTasks(data.tasks || [])
+      setStudents((data.students || []).map(s => ({ ...s, ...(xpById.get(s.id) || {}) })))
+      setLoaded(true)
     } catch (e) { alert('Gagal memuat: ' + e.message) }
     finally { setLoading(false) }
   }
@@ -217,7 +226,14 @@ const RekapNilaiPage = () => {
                 {displayed.map((s, idx) => (
                   <tr key={s.id} className="hover:bg-gray-50 transition">
                     <td className="px-4 py-3 text-gray-400 text-xs sticky left-0 bg-white border-r border-gray-100">{idx + 1}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-800 sticky left-[44px] bg-white border-r border-gray-100">{s.nama}</td>
+                    <td
+                      className="px-4 py-3 font-semibold text-gray-800 sticky left-[44px] bg-white border-r border-gray-100 cursor-help"
+                      onMouseEnter={e => setHover({ student: s, x: e.clientX, y: e.clientY })}
+                      onMouseMove={e => setHover(h => h && h.student.id === s.id ? { ...h, x: e.clientX, y: e.clientY } : h)}
+                      onMouseLeave={() => setHover(null)}
+                    >
+                      {s.nama}
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{s.kelas}</td>
                     <td className="px-4 py-3 text-gray-500">{s.rombel}</td>
                     {tasks.map(t => {
@@ -249,6 +265,11 @@ const RekapNilaiPage = () => {
             <span className="text-red-500 font-semibold">&lt; 55 (Perlu Perhatian)</span>
           </div>
         </div>
+      )}
+      {hover && (
+        <AnimatePresence>
+          <StudentPerformanceCard student={hover.student} x={hover.x} y={hover.y} />
+        </AnimatePresence>
       )}
     </div>
   )
