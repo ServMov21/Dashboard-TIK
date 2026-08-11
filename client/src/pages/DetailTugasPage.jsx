@@ -44,7 +44,15 @@ const DetailTugasPage = () => {
   const [loadingMyTyping, setLoadingMyTyping] = useState(true)
   const [typingList, setTypingList] = useState([]) // daftar status seluruh siswa (guru)
   const [loadingTypingList, setLoadingTypingList] = useState(true)
-  const [typingElapsed, setTypingElapsed] = useState(0) // detik berjalan (live) selama mengerjakan
+  const [typingElapsed, setTypingElapsed] = useState(0)
+  const [editorState, setEditorState] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false
+  }) // detik berjalan (live) selama mengerjakan
   const [typingBusy, setTypingBusy] = useState(false)
   const [typingError, setTypingError] = useState('')
   const [previewHasil, setPreviewHasil] = useState(null) // hasil ketik siswa yang sedang dipratinjau guru
@@ -302,6 +310,18 @@ const DetailTugasPage = () => {
     if (myTyping?.status !== 'mengerjakan') return
     typingEditorRef.current?.focus()
     document.execCommand(cmd, false, null)
+    updateEditorState()
+  }
+
+  const updateEditorState = () => {
+    setEditorState({
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      justifyLeft: document.queryCommandState('justifyLeft'),
+      justifyCenter: document.queryCommandState('justifyCenter'),
+      justifyRight: document.queryCommandState('justifyRight')
+    })
   }
 
   // Ambil file sebagai blob (pakai token auth) lalu buat object URL untuk thumbnail/preview
@@ -495,23 +515,59 @@ const DetailTugasPage = () => {
 
                     {/* Toolbar format - aktif hanya saat sedang mengerjakan */}
                     <div className={`flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-t-xl px-2 py-1.5 ${myTyping?.status !== 'mengerjakan' ? 'opacity-40 pointer-events-none' : ''}`}>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('bold')} title="Tebal" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('bold')} 
+                        title="Tebal" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.bold ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <Bold className="w-4 h-4" />
                       </button>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('italic')} title="Miring" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('italic')} 
+                        title="Miring" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.italic ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <Italic className="w-4 h-4" />
                       </button>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('underline')} title="Garis Bawah" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('underline')} 
+                        title="Garis Bawah" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.underline ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <Underline className="w-4 h-4" />
                       </button>
                       <span className="w-px h-5 bg-gray-200 mx-1" />
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('justifyLeft')} title="Rata Kiri" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('justifyLeft')} 
+                        title="Rata Kiri" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.justifyLeft ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <AlignLeft className="w-4 h-4" />
                       </button>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('justifyCenter')} title="Rata Tengah" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('justifyCenter')} 
+                        title="Rata Tengah" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.justifyCenter ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <AlignCenter className="w-4 h-4" />
                       </button>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => runTypingCommand('justifyRight')} title="Rata Kanan" className="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+                      <button 
+                        type="button" 
+                        onMouseDown={(e) => e.preventDefault()} 
+                        onClick={() => runTypingCommand('justifyRight')} 
+                        title="Rata Kanan" 
+                        className={`p-2 rounded-lg transition-colors ${editorState.justifyRight ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-200 text-gray-600'}`}
+                      >
                         <AlignRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -520,6 +576,9 @@ const DetailTugasPage = () => {
                       contentEditable={myTyping?.status === 'mengerjakan'}
                       suppressContentEditableWarning
                       onPaste={(e) => e.preventDefault()}
+                      onKeyUp={updateEditorState}
+                      onMouseUp={updateEditorState}
+                      onClick={updateEditorState}
                       className={`min-h-[280px] max-h-[420px] overflow-y-auto border border-t-0 border-gray-200 rounded-b-xl px-5 py-4 outline-none leading-relaxed mb-4 text-base empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 empty:before:pointer-events-none ${
                         myTyping?.status === 'mengerjakan' ? 'bg-white text-gray-800' : 'bg-gray-50 text-gray-500'
                       }`}
