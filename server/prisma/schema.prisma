@@ -27,6 +27,7 @@ model Siswa {
   pengumpulanMengetik PengumpulanMengetik[]
   aktivitas     AktivitasSiswa[]
   xpPenalti     XpPenalti[]
+  kehadiran     Kehadiran[]
 }
 
 model Tugas {
@@ -35,6 +36,8 @@ model Tugas {
   deskripsi        String?
   jenis            String
   status           String          @default("draft")
+  publishedAt      DateTime?
+  closedAt         DateTime?
   deadline         DateTime?
   kelasTarget      String
   rombelTarget     String?
@@ -218,4 +221,19 @@ model XpPenalti {
   @@unique([siswaId, tugasId])
   @@index([siswaId])
   @@index([tugasId])
+}
+
+model Kehadiran {
+  id        String   @id @default(uuid())
+  siswaId   String
+  tanggal   DateTime
+  status    String   // 'HADIR', 'IZIN', 'SAKIT', 'ALPA'
+  keterangan String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  siswa     Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+
+  @@unique([siswaId, tanggal])
+  @@index([siswaId])
+  @@index([tanggal])
 }
