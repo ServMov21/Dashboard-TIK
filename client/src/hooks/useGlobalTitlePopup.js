@@ -29,7 +29,6 @@ export function useGlobalTitlePopup() {
           const prevTitle = DEFAULT_TITLE_CONFIG.find(t => t.name === prevTitleName) || DEFAULT_TITLE_CONFIG[0]
           const isUp = DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===curTitle.name) > DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===prevTitle.name)
           
-          // Tampilkan popup untuk kenaikan title
           if (isUp) {
             setPopupData({
               type: 'up',
@@ -38,11 +37,8 @@ export function useGlobalTitlePopup() {
               prevTitle: prevTitle
             })
           }
-          
-          // Update storage
           localStorage.setItem(storageKey, curTitle.name)
         } else if (!prevTitleName) {
-          // Pertama kali, set initial state
           localStorage.setItem(storageKey, curTitle.name)
         }
       } catch (error) {
@@ -51,6 +47,10 @@ export function useGlobalTitlePopup() {
     }
 
     checkTitle()
+
+    // Listen for manual triggers (e.g. after task submission)
+    window.addEventListener('xp-updated', checkTitle)
+    return () => window.removeEventListener('xp-updated', checkTitle)
   }, [])
 
   return {

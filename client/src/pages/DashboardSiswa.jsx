@@ -31,13 +31,6 @@ export default function DashboardSiswa() {
 
         if (xpRes.ok) {
           setXpStats(xpData)
-          // Title popup sekali per sesi (setelah login)
-          if (!sessionStorage.getItem('titleShown')) {
-            sessionStorage.setItem('titleShown', '1')
-            const tc = xpData.xpCfg?.titleConfig || DEFAULT_TITLE_CONFIG
-            const curTitle = getTitleFromXP(xpData.totalXP || 0, xpData.tasksCompleted || 0, tc)
-            setPopup({ type: 'info', nama: user.nama, currentTitle: curTitle })
-          }
         }
       } catch (e) { console.error(e) }
       finally { setLoading(false) }

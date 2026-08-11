@@ -286,6 +286,8 @@ const DetailTugasPage = () => {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
       setMyTyping(data.data)
+      // Pemicu pengecekan title global
+      window.dispatchEvent(new CustomEvent('xp-updated'))
     } catch (e) {
       setTypingError(e.message)
     } finally {
@@ -406,6 +408,8 @@ const DetailTugasPage = () => {
       setSuccess('Tugas berhasil diunggah!')
       setFile(null)
       fetchMySubmission()
+      // Pemicu pengecekan title global
+      window.dispatchEvent(new CustomEvent('xp-updated'))
     } catch (err) {
       setError(err.message)
     } finally {

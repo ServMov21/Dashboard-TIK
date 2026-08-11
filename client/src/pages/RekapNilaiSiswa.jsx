@@ -30,21 +30,11 @@ export default function RekapNilaiSiswa() {
         if (nilaiRes.ok) setNilaiData(nilaiJson)
         if (xpRes.ok) setXpData(xpJson)
 
-        // Popup title (selalu tampil saat buka rekap)
-        if (!popupShownRef.current && xpRes.ok) {
-          popupShownRef.current = true
+        // Update storage title (tanpa popup otomatis, sudah ditangani App.jsx global)
+        if (xpRes.ok) {
           const tc = xpJson.xpCfg?.titleConfig || DEFAULT_TITLE_CONFIG
           const curTitle = getTitleFromXP(xpJson.totalXP || 0, xpJson.tasksCompleted || 0, tc)
           const storageKey = `prevTitle_${xpJson.id || user.id || 'siswa'}`
-          const prevTitleName = localStorage.getItem(storageKey)
-
-          if (prevTitleName && prevTitleName !== curTitle.name) {
-            const prevTitle = DEFAULT_TITLE_CONFIG.find(t => t.name === prevTitleName) || DEFAULT_TITLE_CONFIG[0]
-            const isUp = DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===curTitle.name) > DEFAULT_TITLE_CONFIG.findIndex(t=>t.name===prevTitle.name)
-            setPopup({ type: isUp ? 'up' : 'down', nama: user.nama, currentTitle: curTitle, prevTitle })
-          } else {
-            setPopup({ type: 'info', nama: user.nama, currentTitle: curTitle })
-          }
           localStorage.setItem(storageKey, curTitle.name)
         }
       } catch (e) { console.error(e) }
