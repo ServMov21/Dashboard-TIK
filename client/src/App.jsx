@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
+import { TitlePopup } from './utils/titleRank.jsx'
+import { useGlobalTitlePopup } from '../.gemini/antigravity-ide/brain/9d2ca0e6-6572-4010-bc48-1a51d63363ae/useGlobalTitlePopup.js'
 import Sidebar from './components/Sidebar'
+// ... (rest imports)
+
+function App() {
+  const [user, setUser] = useState(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const { popupData, clearPopup } = useGlobalTitlePopup()
+  const navigate = useNavigate()
+
+  // ... (rest of App component)
+
+  return (
+    <>
+      {popupData && <TitlePopup data={popupData} onClose={clearPopup} />}
+      <Routes>
+        {/* ... */}
+      </Routes>
+    </>
+  )
+}
 import LoginPage from './pages/LoginPage'
 import DashboardGuru from './pages/DashboardGuru'
 import DashboardSiswa from './pages/DashboardSiswa'
