@@ -442,7 +442,11 @@ router.put('/:id', authMiddleware, upload.array('lampiran', 5), async (req, res)
         ...(judul !== undefined && { judul }),
         ...(deskripsi !== undefined && { deskripsi }),
         ...(deadline !== undefined && { deadline: deadline ? new Date(deadline) : null }),
-        ...(status !== undefined && { status }),
+        ...(status !== undefined && {
+          status,
+          ...(status === 'launch' && { publishedAt: new Date() }),
+          ...(status === 'ditutup' && { closedAt: new Date() }),
+        }),
         ...(kelasTarget !== undefined && { kelasTarget: JSON.stringify(normalizeArray(kelasTarget)) }),
         ...(rombelTarget !== undefined && { rombelTarget: JSON.stringify(normalizeArray(rombelTarget)) }),
         ...(naskahMengetik !== undefined && { naskahMengetik }),

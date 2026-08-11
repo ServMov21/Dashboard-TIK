@@ -73,6 +73,24 @@ export async function applyPenaltiTidakKumpul(prisma, tugas) {
 
     let applied = 0
     for (const s of belum) {
+      // Logic baru: cek status kehadiran dan aktivitas buka tugas
+      const sudahBuka = await prisma.aktivitasSiswa.findFirst({
+        where: { siswaId: s.id, tugasId: tugas.id, jenis: 'BUKA_TUGAS' }
+      })
+      if (sudahBuka) {
+        // Sudah buka tugas tapi tidak mengumpulkan, tetap penalti
+      } else {
+        // Belum pernah buka, cek kehadiran di rentang publish - close
+        const absen = await prisma.kehadiran.findFirst({
+          where: {
+            siswaId: s.id,
+            tanggal: { gte: tugas.publishedAt || new Date(0), lte: tugas.closedAt || new Date() },
+            status: { in: ['IZIN', 'SAKIT'] }
+          }
+        })
+        if (absen) continue // Aman, lewati
+      }
+
       try {
         await prisma.xpPenalti.upsert({
           where: { siswaId_tugasId: { siswaId: s.id, tugasId: tugas.id } },

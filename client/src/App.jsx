@@ -22,6 +22,7 @@ import RekapNilaiSiswa from './pages/RekapNilaiSiswa'
 import LeaderboardPage from './pages/LeaderboardPage'
 import RiwayatXPPage from './pages/RiwayatXPPage'
 import SampahPage from './pages/SampahPage'
+import RekapKehadiranPage from './pages/RekapKehadiranPage'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -124,6 +125,7 @@ const GuruRoutes = () => (
     <Route path="/leaderboard" element={<LeaderboardPage />} />
     <Route path="/riwayat-xp" element={<RiwayatXPPage />} />
     <Route path="/sampah" element={<SampahPage />} />
+    <Route path="/kehadiran" element={<RekapKehadiranPage />} />
     <Route path="/*" element={<Navigate to="/dashboard" replace />} />
   </Routes>
 )

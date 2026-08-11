@@ -91,6 +91,21 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
     const tidakMasuk = siswaList.filter((s) => tidakMasukSet.has(s.id))
     const activeList = siswaList.filter((s) => !tidakMasukSet.has(s.id))
 
+    // Record attendance automatically based on shuffle
+    const today = new Date(new Date().setHours(0, 0, 0, 0))
+    Promise.all([
+      ...tidakMasuk.map(s => prisma.kehadiran.upsert({
+        where: { siswaId_tanggal: { siswaId: s.id, tanggal: today } },
+        update: { status: 'IZIN' },
+        create: { siswaId: s.id, tanggal: today, status: 'IZIN' }
+      })),
+      ...activeList.map(s => prisma.kehadiran.upsert({
+        where: { siswaId_tanggal: { siswaId: s.id, tanggal: today } },
+        update: { status: 'HADIR' },
+        create: { siswaId: s.id, tanggal: today, status: 'HADIR' }
+      }))
+    ]).catch(e => console.error('Gagal mencatat kehadiran dari acak tempat duduk:', e))
+
     if (activeList.length === 0) {
       return res.status(400).json({ message: 'Semua siswa ditandai tidak masuk.' })
     }

@@ -16,6 +16,7 @@ const Sidebar = ({ user }) => {
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: ClipboardList, label: 'Informasi Tugas', path: '/dashboard/tugas' },
     { icon: Upload, label: 'Pengumpulan', path: '/dashboard/pengumpulan' },
+    { icon: Calendar, label: 'Rekap Kehadiran', path: '/dashboard/kehadiran' },
     { icon: BarChart2, label: 'Rekap Nilai', path: '/dashboard/rekap-nilai' },
     { icon: Trophy, label: 'Leaderboard', path: '/dashboard/leaderboard' },
     { icon: TrendingUp, label: 'Riwayat XP', path: '/dashboard/riwayat-xp' },
