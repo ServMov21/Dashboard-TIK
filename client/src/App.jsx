@@ -1,27 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { TitlePopup } from './utils/titleRank.jsx'
-import { useGlobalTitlePopup } from '../.gemini/antigravity-ide/brain/9d2ca0e6-6572-4010-bc48-1a51d63363ae/useGlobalTitlePopup.js'
+import { useGlobalTitlePopup } from '../../brain/9d2ca0e6-6572-4010-bc48-1a51d63363ae/useGlobalTitlePopup.js'
 import Sidebar from './components/Sidebar'
-// ... (rest imports)
-
-function App() {
-  const [user, setUser] = useState(null)
-  const [checkingAuth, setCheckingAuth] = useState(true)
-  const { popupData, clearPopup } = useGlobalTitlePopup()
-  const navigate = useNavigate()
-
-  // ... (rest of App component)
-
-  return (
-    <>
-      {popupData && <TitlePopup data={popupData} onClose={clearPopup} />}
-      <Routes>
-        {/* ... */}
-      </Routes>
-    </>
-  )
-}
 import LoginPage from './pages/LoginPage'
 import DashboardGuru from './pages/DashboardGuru'
 import DashboardSiswa from './pages/DashboardSiswa'
@@ -46,6 +27,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const navigate = useNavigate()
+  const { popupData, clearPopup } = useGlobalTitlePopup()
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
@@ -104,22 +86,25 @@ function App() {
   )
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
-      <Route path="/s/:kode" element={<QuickShareJoinPage />} />
-      <Route path="/share/:shareId" element={<PublicFileSharingPage />} />
+    <>
+      {popupData && <TitlePopup data={popupData} onClose={clearPopup} />}
+      <Routes>
+        <Route path="/login" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
+        <Route path="/s/:kode" element={<QuickShareJoinPage />} />
+        <Route path="/share/:shareId" element={<PublicFileSharingPage />} />
 
-      {user?.role === 'guru' && (
-        <Route path="/dashboard/*" element={<LayoutWithSidebar><GuruRoutes /></LayoutWithSidebar>} />
-      )}
+        {user?.role === 'guru' && (
+          <Route path="/dashboard/*" element={<LayoutWithSidebar><GuruRoutes /></LayoutWithSidebar>} />
+        )}
 
-      {user?.role === 'siswa' && (
-        <Route path="/siswa/*" element={<LayoutWithSidebar><SiswaRoutes /></LayoutWithSidebar>} />
-      )}
+        {user?.role === 'siswa' && (
+          <Route path="/siswa/*" element={<LayoutWithSidebar><SiswaRoutes /></LayoutWithSidebar>} />
+        )}
 
-      <Route path="/" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
-      <Route path="*" element={<div>404 Not Found</div>} />
-    </Routes>
+        <Route path="/" element={<LoginPage onLoginSuccess={handleLoginSuccess} />} />
+        <Route path="*" element={<div>404 Not Found</div>} />
+      </Routes>
+    </>
   )
 }
 
