@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import { Trophy, RefreshCw, Users, School } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import { TitlePill, DEFAULT_TITLE_CONFIG, getTitleFromXP } from '../utils/titleRank.jsx'
+import StudentPerformanceCard from '../components/StudentPerformanceCard'
 
 const MEDAL = { 1:'🥇', 2:'🥈', 3:'🥉' }
 
