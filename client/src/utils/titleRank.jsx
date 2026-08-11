@@ -76,50 +76,125 @@ export function TitlePopup({ data, onClose }) {
   const nextT = currentTitle ? getNextTitle(currentTitle) : null
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center px-4" onClick={onClose}>
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center relative" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-300 hover:text-gray-500 text-xl">✕</button>
+    <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center px-4 backdrop-blur-sm" onClick={onClose}>
+      <style>{`
+        @keyframes shiny-sweep {
+          0% { transform: translateX(-200%) skewX(-30deg); }
+          100% { transform: translateX(200%) skewX(-30deg); }
+        }
+        @keyframes float-3d {
+          0%, 100% { transform: translateY(0) rotateX(10deg) rotateY(-5deg); }
+          50% { transform: translateY(-10px) rotateX(15deg) rotateY(5deg); }
+        }
+        .shiny-card {
+          position: relative;
+          overflow: hidden;
+          perspective: 1000px;
+          transform-style: preserve-3d;
+          animation: float-3d 4s ease-in-out infinite;
+        }
+        .shiny-overlay {
+          position: absolute;
+          top: 0; left: -100%; width: 100%; height: 100%;
+          background: linear-gradient(
+            120deg,
+            transparent,
+            rgba(255, 255, 255, 0.4),
+            transparent
+          );
+          transition: all 0.5s;
+          animation: shiny-sweep 3s infinite;
+          pointer-events: none;
+        }
+      `}</style>
+      
+      <div 
+        className="bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] w-full max-w-sm p-8 text-center relative border border-gray-100 shiny-card"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="shiny-overlay" />
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-300 hover:text-gray-500 transition-colors z-10">✕</button>
 
-        {type === 'up' && <>
-          <div className="text-5xl mb-3">🎉</div>
-          <h2 className="text-2xl font-black text-gray-800 mb-1">TITLE UP!</h2>
-          <p className="text-gray-500 font-semibold mb-4">Selamat, <span className="text-gray-800">{nama}</span>!</p>
-          <div className="flex items-center justify-center gap-3 mb-5">
-            <div className={`px-3 py-2 rounded-xl ${prevTitle?.bg} ${prevTitle?.tw} font-black text-lg border ${prevTitle?.border}`}>{prevTitle?.emoji} {prevTitle?.name}</div>
-            <span className="text-2xl">→</span>
-            <div className={`px-3 py-2 rounded-xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-xl border-2 ${currentTitle?.border} ring-2 ring-offset-1`}>{currentTitle?.emoji} {currentTitle?.name}</div>
+        {type === 'up' && (
+          <div className="relative z-10">
+            <div className="text-6xl mb-4 drop-shadow-lg">🎉</div>
+            <h2 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 mb-1">TITLE UP!</h2>
+            <p className="text-gray-500 font-bold mb-6 text-sm">Selamat, <span className="text-gray-900">{nama}</span>!</p>
+            
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <div className={`px-4 py-3 rounded-2xl ${prevTitle?.bg} ${prevTitle?.tw} font-black text-lg border-2 ${prevTitle?.border} opacity-60 scale-90`}>
+                {prevTitle?.emoji} {prevTitle?.name}
+              </div>
+              <div className="text-3xl animate-pulse text-blue-500">→</div>
+              <div 
+                className={`px-5 py-4 rounded-2xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-2xl border-4 ${currentTitle?.border} scale-110`}
+                style={{ boxShadow: `0 0 20px ${currentTitle?.hex || '#3b82f6'}44` }}
+              >
+                {currentTitle?.emoji} {currentTitle?.name}
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">
+              Kamu telah mencapai level baru! <br/>
+              Terus tingkatkan prestasimu 🔥
+            </p>
           </div>
-          <p className="text-sm text-gray-400">Kamu naik title! Pertahankan terus prestasi ini 🔥</p>
-        </>}
+        )}
 
-        {type === 'down' && <>
-          <div className="text-5xl mb-3">😔</div>
-          <h2 className="text-2xl font-black text-gray-800 mb-1">Title Turun</h2>
-          <p className="text-gray-500 font-semibold mb-4">Sayang sekali, <span className="text-gray-800">{nama}</span>...</p>
-          <div className="flex items-center justify-center gap-3 mb-5">
-            <div className={`px-3 py-2 rounded-xl ${prevTitle?.bg} ${prevTitle?.tw} font-black text-lg border ${prevTitle?.border}`}>{prevTitle?.emoji} {prevTitle?.name}</div>
-            <span className="text-2xl text-red-400">↓</span>
-            <div className={`px-3 py-2 rounded-xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-lg border ${currentTitle?.border}`}>{currentTitle?.emoji} {currentTitle?.name}</div>
+        {type === 'down' && (
+          <div className="relative z-10">
+            <div className="text-6xl mb-4">😔</div>
+            <h2 className="text-3xl font-black text-gray-800 mb-1">Yah, Turun...</h2>
+            <p className="text-gray-500 font-bold mb-6 text-sm">Tetap semangat, <span className="text-gray-900">{nama}</span>!</p>
+            
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <div className={`px-4 py-3 rounded-2xl ${prevTitle?.bg} ${prevTitle?.tw} font-black text-lg border-2 ${prevTitle?.border}`}>
+                {prevTitle?.emoji} {prevTitle?.name}
+              </div>
+              <div className="text-3xl text-red-400">↓</div>
+              <div className={`px-4 py-3 rounded-2xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-lg border-2 ${currentTitle?.border}`}>
+                {currentTitle?.emoji} {currentTitle?.name}
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-400 font-medium leading-relaxed">
+              Jangan menyerah! Selesaikan lebih banyak <br/>
+              tugas untuk naik lagi 💪
+            </p>
           </div>
-          <p className="text-sm text-gray-400">Semangat mengerjakan tugasnya dan tetap konsisten untuk naik lagi! 💪</p>
-        </>}
+        )}
 
-        {type === 'info' && <>
-          <div className="text-6xl mb-3">{currentTitle?.emoji}</div>
-          <p className="text-gray-500 font-medium mb-1">Title kamu saat ini</p>
-          <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-2xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-2xl border-2 ${currentTitle?.border} mb-4`}>
-            {currentTitle?.emoji} {currentTitle?.name}
+        {type === 'info' && (
+          <div className="relative z-10">
+            <div className="text-7xl mb-4 drop-shadow-xl animate-bounce">{currentTitle?.emoji}</div>
+            <p className="text-gray-400 font-bold uppercase tracking-wider text-[10px] mb-2">Title Saat Ini</p>
+            <div className={`inline-flex items-center gap-3 px-6 py-3 rounded-2xl ${currentTitle?.bg} ${currentTitle?.tw} font-black text-3xl border-4 ${currentTitle?.border} mb-6 shadow-lg shadow-blue-100`}>
+              {currentTitle?.emoji} {currentTitle?.name}
+            </div>
+            
+            {nextT ? (
+              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 mb-2">
+                <p className="text-xs text-blue-700 font-bold mb-1">TARGET BERIKUTNYA</p>
+                <p className="text-sm text-blue-600 font-black italic">
+                  {nextT.emoji} {nextT.name}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-yellow-600 font-black mb-4">👑 LEVEL TERTINGGI DICAPAI! 👑</p>
+            )}
+            
+            <div className="mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+              <TitleHintBar currentTitle={currentTitle} />
+            </div>
           </div>
-          {nextT
-            ? <p className="text-sm text-gray-500 mb-4">Kumpulkan lebih banyak XP untuk menjadi <span className={`font-bold ${nextT.tw}`}>{nextT.emoji} {nextT.name}</span></p>
-            : <p className="text-sm text-yellow-600 font-bold mb-4">Kamu sudah di title tertinggi! 🏆</p>
-          }
-          <div className="mt-2 p-3 bg-gray-50 rounded-xl">
-            <TitleHintBar currentTitle={currentTitle} />
-          </div>
-        </>}
+        )}
 
-        <button onClick={onClose} className="mt-5 w-full py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Oke!</button>
+        <button 
+          onClick={onClose} 
+          className="mt-8 w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all z-10 relative"
+        >
+          SIAP! 🚀
+        </button>
       </div>
     </div>
   )
