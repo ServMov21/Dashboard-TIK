@@ -1171,15 +1171,20 @@ const CollabWidget = ({ tugasId }) => {
     setTemanList([])
     setSelectedPartnerId('')
     try {
-      const res = await apiRequest(`/api/collab/manual/search-siswa?kelas=${selectedKelas}&rombel=${selectedRombel}&tugasId=${tugasId}`)
+      const query = new URLSearchParams({ kelas: selectedKelas, rombel: selectedRombel })
+      const res = await apiRequest(`/api/siswa/login-list?${query}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message)
-      setTemanList(Array.isArray(data) ? data : [])
-      if (data.length === 0) {
-        setError('Tidak ada teman tersedia di kelas/rombel tersebut.')
+      if (!res.ok) throw new Error(data.message || 'Gagal mencari siswa.')
+
+      const currentSiswaId = JSON.parse(localStorage.getItem('user') || '{}').id
+      const daftarTeman = data.filter((siswa) => siswa.id !== currentSiswaId)
+      setTemanList(daftarTeman)
+
+      if (daftarTeman.length === 0) {
+        setError('Tidak ada teman di kelas dan rombel tersebut.')
       }
     } catch (e) {
-      setError(e.message)
+      setError(e.message || 'Gagal mencari siswa.')
     } finally {
       setSearching(false)
     }
