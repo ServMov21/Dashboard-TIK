@@ -229,7 +229,7 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
     }
 
     devices.sort((a, b) => a.id - b.id)
-    res.json({
+    const result = {
       devices,
       tidakMasuk: tidakMasuk.map((s) => ({ id: s.id, nama: s.nama, jenisKelamin: s.jenisKelamin })),
       ringkasan: {
