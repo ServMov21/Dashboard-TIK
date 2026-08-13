@@ -65,11 +65,11 @@ cd server
 REM Buat .env otomatis jika belum ada
 IF NOT EXIST ".env" (
     echo .env tidak ditemukan, membuat file .env baru...
-    echo PORT=5000> .env
+    echo PORT=8163> .env
     echo HOST=0.0.0.0>> .env
     echo JWT_SECRET=dashboard-tik-local-secret-key-2024>> .env
     echo DATABASE_URL="file:./dev.db">> .env
-    echo FRONTEND_URL=http://localhost:5000>> .env
+    echo FRONTEND_URL=http://localhost:8163>> .env
     echo MAX_UPLOAD_SIZE_MB=500>> .env
     echo File .env berhasil dibuat.
 )
@@ -111,7 +111,7 @@ cd ..
 echo Memulai server backend dan frontend...
 start cmd /k "cd server && npm start"
 timeout /t 5 >nul
-start http://localhost:5000
+start http://localhost:8163
 
 echo Dashboard TIK berhasil dijalankan!
 echo Tutup jendela command prompt ini untuk menghentikan server.

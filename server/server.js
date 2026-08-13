@@ -24,7 +24,7 @@ const io = new Server(httpServer, {
   cors: corsOptions,
 })
 
-const DEFAULT_PORT = process.platform === 'darwin' ? 5001 : 5000
+const DEFAULT_PORT = 8163
 const PORT = Number(process.env.PORT || DEFAULT_PORT)
 const HOST = process.env.HOST || '0.0.0.0'
 const clientDistPath = path.resolve(__dirname, '../client/dist')
@@ -101,7 +101,7 @@ httpServer.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
     console.error(`\nPort ${PORT} sedang dipakai aplikasi lain.`)
     console.error('Tutup aplikasi/server lain yang memakai port itu, atau jalankan dengan PORT berbeda.')
-    console.error('Mac contoh: PORT=5002 npm start\n')
+    console.error('Mac contoh: PORT=8164 npm start\n')
     process.exit(1)
   }
 
