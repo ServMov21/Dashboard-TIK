@@ -17,6 +17,7 @@ import nilaiRoutes from './nilai.js'
 import sampahRoutes from './sampah.js'
 import kehadiranRoutes from './kehadiran.js'
 import xpRoutes from './xp.js'
+import backupRoutes from './backup.js'
 
 const router = express.Router()
 
@@ -38,6 +39,7 @@ router.use('/nilai', nilaiRoutes)
 router.use('/xp', xpRoutes)
 router.use('/sampah', sampahRoutes)
 router.use('/kehadiran', kehadiranRoutes)
+router.use('/backup', backupRoutes)
 
 router.get('/', (req, res) => {
   res.json({ message: 'Dashboard TIK API' })

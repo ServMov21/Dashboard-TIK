@@ -1,6 +1,7 @@
 import express from 'express'
 import { PrismaClient } from '@prisma/client'
 import authMiddleware from '../middleware/authMiddleware.js'
+import { startAutoBackup } from '../services/backupService.js'
 
 const prisma = new PrismaClient()
 const router = express.Router()
@@ -29,8 +30,12 @@ router.put('/', authMiddleware, async (req, res) => {
         jamLogout: parseInt(data.jamLogout),
         submissionFolderPattern: data.submissionFolderPattern,
         duplicateFileHandling: data.duplicateFileHandling,
+        backupDir: data.backupDir,
+        autoBackupEnabled: !!data.autoBackupEnabled,
+        autoBackupIntervalSeconds: parseInt(data.autoBackupIntervalSeconds) || 3600,
       },
     })
+    await startAutoBackup()
     res.json(updated)
   } catch (error) {
     res.status(500).json({ message: 'Gagal memperbarui pengaturan.', error: error.message })

@@ -13,6 +13,9 @@ const SettingsPage = () => {
     jamLogout: 60,
     submissionFolderPattern: 'KELAS_ROMBEL/NAMA_TUGAS',
     duplicateFileHandling: 'RENAME_INCREMENT',
+    backupDir: '',
+    autoBackupEnabled: false,
+    autoBackupIntervalSeconds: 3600,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,6 +99,7 @@ const SettingsPage = () => {
     switch(activeTab) {
       case 'xp': return <XpSettingsSection apiRequest={apiRequest} />;
       case 'tampilan': return <TampilanSettingsSection form={form} handleChange={handleChange} />;
+      case 'backup': return <BackupSettingsSection form={form} handleChange={handleChange} apiRequest={apiRequest} />;
       default: return <GeneralSettingsSection form={form} handleChange={handleChange} message={message} error={error} handleSave={handleSave} saving={saving} />;
     }
   };
@@ -110,6 +114,7 @@ const SettingsPage = () => {
       <div className="flex items-center gap-2 mb-6 border-b border-gray-100">
         <TabButton id="umum" activeTab={activeTab} setActiveTab={setActiveTab} icon={SlidersHorizontal}>Umum</TabButton>
         <TabButton id="tampilan" activeTab={activeTab} setActiveTab={setActiveTab} icon={Palette}>Tampilan & Sistem</TabButton>
+        <TabButton id="backup" activeTab={activeTab} setActiveTab={setActiveTab} icon={Files}>Backup & Restore</TabButton>
         <TabButton id="xp" activeTab={activeTab} setActiveTab={setActiveTab} icon={Zap}>XP & Title</TabButton>
       </div>
       
@@ -323,6 +328,174 @@ const Select = ({ label, name, value, onChange, options }) => (
     >
       {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
+  </div>
+);
+
+
+const BackupSettingsSection = ({ form, handleChange, apiRequest }) => {
+  const [backupMessage, setBackupMessage] = useState('');
+  const [backupError, setBackupError] = useState('');
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreFile, setRestoreFile] = useState(null);
+
+  const handleCreateBackup = async () => {
+    setIsBackingUp(true);
+    setBackupMessage('');
+    setBackupError('');
+    try {
+      const res = await apiRequest('/api/backup/run', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal membuat backup.');
+      setBackupMessage(`Backup berhasil dibuat: ${data.file}`);
+    } catch (e) {
+      setBackupError(e.message || 'Gagal membuat backup.');
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!restoreFile) {
+      setBackupError('Pilih file backup untuk direstore.');
+      return;
+    }
+
+    if (!confirm('ANDA YAKIN INGIN MERESTORE? Ini akan menimpa seluruh database dan file storage. Harap pastikan Anda memiliki backup terbaru!')) {
+      return;
+    }
+
+    setIsRestoring(true);
+    setBackupMessage('');
+    setBackupError('');
+    try {
+      const formData = new FormData();
+      formData.append('backupFile', restoreFile);
+
+      const res = await apiRequest('/api/backup/restore', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': undefined, // Let browser set Content-Type with boundary
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Gagal merestore backup.');
+      setBackupMessage('Restore berhasil! Aplikasi akan memuat ulang.');
+      setTimeout(() => window.location.reload(), 2000); // Reload to reflect DB changes
+    } catch (e) {
+      setBackupError(e.message || 'Gagal merestore backup.');
+    } finally {
+      setIsRestoring(false);
+      setRestoreFile(null);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {backupMessage && <p className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">{backupMessage}</p>}
+      {backupError && <p className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">{backupError}</p>}
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><Files className="w-5 h-5 text-blue-500" /> Backup Data</h2>
+        <div className="space-y-4">
+          <Input 
+            label="Folder Tujuan Backup" 
+            name="backupDir" 
+            value={form.backupDir} 
+            onChange={handleChange} 
+            placeholder="C:\\Dashboard_TIK_Backup" 
+          />
+          <Switch 
+            label="Aktifkan Auto-Backup" 
+            name="autoBackupEnabled" 
+            checked={form.autoBackupEnabled} 
+            onChange={handleChange} 
+            description="Secara otomatis membuat backup berkala." 
+          />
+          {form.autoBackupEnabled && (
+            <Input 
+              label="Interval Auto-Backup (detik)" 
+              name="autoBackupIntervalSeconds" 
+              type="number"
+              value={form.autoBackupIntervalSeconds} 
+              onChange={handleChange} 
+              placeholder="3600" 
+              description="Contoh: 3600 detik = 1 jam."
+            />
+          )}
+          <button 
+            onClick={handleCreateBackup} 
+            disabled={isBackingUp}
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 mt-6"
+          >
+            {isBackingUp ? 'Membuat Backup...' : 'Buat Backup Sekarang'}
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><Clock className="w-5 h-5 text-red-500" /> Restore Data</h2>
+        <div className="space-y-4">
+          <FileInput 
+            label="Pilih File Backup (.zip)" 
+            onChange={setRestoreFile} 
+            accept=".zip" 
+            currentFile={restoreFile}
+          />
+          <button 
+            onClick={handleRestore} 
+            disabled={isRestoring || !restoreFile}
+            className="w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 disabled:opacity-50 transition shadow-lg shadow-red-200 flex items-center justify-center gap-2 mt-6"
+          >
+            {isRestoring ? 'Merestore...' : 'Restore dari Backup'}
+          </button>
+          <p className="text-sm text-red-700 mt-4 p-2 bg-red-50 border border-red-200 rounded-lg">
+            <strong>PERINGATAN:</strong> Proses restore akan menimpa seluruh data aplikasi Anda dengan data dari file backup. Pastikan Anda telah membuat backup terbaru sebelum melanjutkan.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Switch = ({ label, name, checked, onChange, description }) => (
+  <label className="flex items-center cursor-pointer justify-between">
+    <div>
+      <span className="text-sm font-medium text-gray-700 block">{label}</span>
+      {description && <span className="text-xs text-gray-500">{description}</span>}
+    </div>
+    <div className="relative">
+      <input
+        type="checkbox"
+        name={name}
+        className="sr-only"
+        checked={checked}
+        onChange={(e) => onChange(name, e.target.checked)}
+      />
+      <div className={`block w-14 h-8 rounded-full ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+      <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${checked ? 'translate-x-full' : ''}`}></div>
+    </div>
+  </label>
+);
+
+const FileInput = ({ label, onChange, accept, currentFile }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input
+      type="file"
+      accept={accept}
+      onChange={(e) => onChange(e.target.files[0])}
+      className="w-full text-sm text-gray-500
+        file:mr-4 file:py-2 file:px-4
+        file:rounded-full file:border-0
+        file:text-sm file:font-semibold
+        file:bg-blue-50 file:text-blue-700
+        hover:file:bg-blue-100"
+    />
+    {currentFile && (
+      <p className="text-xs text-gray-500 mt-2">File terpilih: {currentFile.name}</p>
+    )}
   </div>
 );
 
