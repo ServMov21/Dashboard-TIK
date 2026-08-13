@@ -24,7 +24,8 @@ const io = new Server(httpServer, {
   cors: corsOptions,
 })
 
-const PORT = process.env.PORT || 5000
+const DEFAULT_PORT = process.platform === 'darwin' ? 5001 : 5000
+const PORT = Number(process.env.PORT || DEFAULT_PORT)
 const HOST = process.env.HOST || '0.0.0.0'
 const clientDistPath = path.resolve(__dirname, '../client/dist')
 
@@ -61,7 +62,7 @@ function getLanAddresses() {
   }
 }
 
-httpServer.listen(PORT, HOST, () => {
+function tampilkanAlamatAkses() {
   const { disarankan, lainnya } = getLanAddresses()
 
   console.log('\n===============================================')
@@ -94,4 +95,18 @@ httpServer.listen(PORT, HOST, () => {
 
   // Start auto-backup scheduler on server start
   startAutoBackup()
+}
+
+httpServer.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`\nPort ${PORT} sedang dipakai aplikasi lain.`)
+    console.error('Tutup aplikasi/server lain yang memakai port itu, atau jalankan dengan PORT berbeda.')
+    console.error('Mac contoh: PORT=5002 npm start\n')
+    process.exit(1)
+  }
+
+  throw error
 })
+
+httpServer.listen(PORT, HOST, tampilkanAlamatAkses)
+

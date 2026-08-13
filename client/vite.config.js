@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: true, // dengarkan di semua interface (0.0.0.0), bukan cuma localhost
     proxy: {
-      '/api': 'http://localhost:5000',
+      '/api': `http://localhost:${process.env.VITE_SERVER_PORT || (process.platform === 'darwin' ? 5001 : 5000)}`,
     },
   },
 })
