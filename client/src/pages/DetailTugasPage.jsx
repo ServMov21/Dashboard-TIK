@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import { Calendar, Clock, FileText, Upload, AlertCircle, ArrowLeft, Download, CheckCircle, Eye, Image as ImageIcon, FileCheck2, Keyboard, Bold, Italic, Underline, Lock, Timer, RotateCcw, Trophy, X, AlignLeft, AlignCenter, AlignRight, PenLine, Save, Trash2 } from 'lucide-react'
@@ -1313,6 +1313,18 @@ const CollabWidget = ({ tugasId }) => {
                     {rombelList.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Cari Nama Siswa</label>
+                <input
+                    type="search"
+                    placeholder="Ketik nama untuk memfilter..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                    disabled={!selectedRombel}
+                />
               </div>
 
               <div>
