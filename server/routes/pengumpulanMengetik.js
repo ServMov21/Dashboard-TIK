@@ -209,6 +209,39 @@ router.post('/selesai', authMiddleware, async (req, res) => {
 
     const finalRecord = await prisma.pengumpulanMengetik.findUnique({ where: { id: existing.id } })
 
+    // Kolaborasi: Duplikasi ke partner
+    const collab = await prisma.collabTugas.findFirst({
+      where: { tugasId, OR: [{ siswa1Id: req.user.id }, { siswa2Id: req.user.id }] }
+    })
+    if (collab) {
+      const partnerId = collab.siswa1Id === req.user.id ? collab.siswa2Id : collab.siswa1Id
+      await prisma.pengumpulanMengetik.upsert({
+        where: { tugasId_siswaId: { tugasId, siswaId: partnerId } },
+        update: {
+          status: 'selesai',
+          waktuSelesai: finalRecord.waktuSelesai,
+          durasiDetik: finalRecord.durasiDetik,
+          hasilKetik: finalRecord.hasilKetik,
+          skorKebenaran: finalRecord.skorKebenaran,
+          skorKecepatan: finalRecord.skorKecepatan,
+          skorTotal: finalRecord.skorTotal,
+        },
+        create: {
+          tugasId,
+          siswaId: partnerId,
+          status: 'selesai',
+          waktuMulai: finalRecord.waktuMulai,
+          waktuSelesai: finalRecord.waktuSelesai,
+          durasiDetik: finalRecord.durasiDetik,
+          hasilKetik: finalRecord.hasilKetik,
+          skorKebenaran: finalRecord.skorKebenaran,
+          skorKecepatan: finalRecord.skorKecepatan,
+          skorTotal: finalRecord.skorTotal,
+        }
+      })
+      await hitungUlangSkorKecepatan(tugasId)
+    }
+
     await catatAktivitas({
       siswaId: req.user.id,
       tugasId,

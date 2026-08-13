@@ -28,6 +28,8 @@ model Siswa {
   aktivitas     AktivitasSiswa[]
   xpPenalti     XpPenalti[]
   kehadiran     Kehadiran[]
+  collab1       CollabTugas[] @relation("Siswa1")
+  collab2       CollabTugas[] @relation("Siswa2")
 }
 
 model Tugas {
@@ -52,6 +54,7 @@ model Tugas {
   pengumpulanMengetik PengumpulanMengetik[]
   aktivitas        AktivitasSiswa[]
   xpPenalti        XpPenalti[]
+  collab           CollabTugas[]
 
   @@index([batchId])
 }
@@ -251,4 +254,20 @@ model AcakState {
   updatedAt DateTime @updatedAt
 
   @@unique([kelas, rombel])
+}
+
+model CollabTugas {
+  id        String   @id @default(uuid())
+  tugasId   String
+  siswa1Id  String
+  siswa2Id  String
+  createdAt DateTime @default(now())
+
+  tugas     Tugas    @relation(fields: [tugasId], references: [id], onDelete: Cascade)
+  siswa1    Siswa    @relation("Siswa1", fields: [siswa1Id], references: [id], onDelete: Cascade)
+  siswa2    Siswa    @relation("Siswa2", fields: [siswa2Id], references: [id], onDelete: Cascade)
+
+  @@unique([tugasId, siswa1Id])
+  @@unique([tugasId, siswa2Id])
+  @@index([tugasId])
 }

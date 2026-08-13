@@ -463,9 +463,13 @@ const DetailTugasPage = () => {
               </span>
             )}
             <h1 className="text-2xl font-bold text-gray-800 mt-3">{tugas.judul}</h1>
-            <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4" /> Dibuat pada: {new Date(tugas.createdAt).toLocaleDateString('id-ID')}
-            </p>
+              <p className="text-gray-500 text-sm mt-1 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" /> Dibuat pada: {new Date(tugas.createdAt).toLocaleDateString('id-ID')}
+              </p>
+              
+              {isSiswa && (
+                <CollabWidget tugasId={tugas.id} />
+              )}
 
             <div className="mt-6 border-t border-gray-100 pt-6">
               <h3 className="font-bold text-gray-800 mb-2">{isMengetik ? 'Perintah Tugas' : 'Deskripsi Tugas'}</h3>
@@ -1083,4 +1087,184 @@ const DetailTugasPage = () => {
   )
 }
 
+const CollabWidget = ({ tugasId }) => {
+  const [collab, setCollab] = useState({ isCollab: false })
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [temanList, setTemanList] = useState([])
+  const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [tanggalLahir, setTanggalLahir] = useState('')
+  const [error, setError] = useState('')
+  const [joining, setJoining] = useState(false)
+
+  useEffect(() => {
+    fetchCollabStatus()
+  }, [tugasId])
+
+  const fetchCollabStatus = async () => {
+    try {
+      const res = await apiRequest(`/api/collab/${tugasId}`)
+      const data = await res.json()
+      setCollab(data)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOpenCollab = async () => {
+    setError('')
+    setSelectedPartnerId('')
+    setTanggalLahir('')
+    setShowModal(true)
+    try {
+      const res = await apiRequest(`/api/collab/${tugasId}/teman`)
+      const data = await res.json()
+      setTemanList(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleJoin = async (e) => {
+    e.preventDefault()
+    if (!selectedPartnerId || !tanggalLahir) {
+      setError('Pilih teman dan masukkan tanggal lahir.')
+      return
+    }
+    setJoining(true)
+    setError('')
+    try {
+      const res = await apiRequest('/api/collab/join', {
+        method: 'POST',
+        body: JSON.stringify({
+          tugasId,
+          partnerId: selectedPartnerId,
+          tanggalLahir
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setCollab(data)
+      setShowModal(false)
+      // Save info to localStorage so submission functions know who partner is
+      localStorage.setItem(`collab_tugas_${tugasId}`, JSON.stringify(data.partner))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setJoining(false)
+    }
+  }
+
+  const handleLeave = async () => {
+    if (!window.confirm('Batal kolaborasi? Kamu akan mengerjakan tugas ini secara individu.')) return
+    try {
+      const res = await apiRequest(`/api/collab/${collab.collabId}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.message)
+      }
+      setCollab({ isCollab: false })
+      localStorage.removeItem(`collab_tugas_${tugasId}`)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  if (loading) return null
+
+  return (
+    <div className="mt-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex flex-wrap items-center justify-between gap-4">
+      {collab.isCollab ? (
+        <>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-semibold text-blue-900">
+              Dikerjakan Bersama <span className="font-bold underline text-blue-700">{collab.partner?.nama}</span>
+            </span>
+          </div>
+          <button
+            onClick={handleLeave}
+            className="px-4 py-1.5 bg-red-100 text-red-700 font-bold text-xs rounded-lg hover:bg-red-200 transition"
+          >
+            Keluar Collab
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="text-xs text-gray-500 font-medium">Bekerja bersama teman sekelas di PC yang sama?</span>
+          <button
+            onClick={handleOpenCollab}
+            className="px-4 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg hover:bg-blue-700 transition"
+          >
+            Collab / Join
+          </button>
+        </>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="font-bold text-lg text-gray-800 mb-4">Pilih Teman Collab</h3>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+              </div>
+            )}
+
+            <form onSubmit={handleJoin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Teman Satu Kelas</label>
+                <select
+                  value={selectedPartnerId}
+                  onChange={(e) => setSelectedPartnerId(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
+                  required
+                >
+                  <option value="">-- Pilih Teman --</option>
+                  {temanList.map((t) => (
+                    <option key={t.id} value={t.id}>{t.nama}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Konfirmasi Tanggal Lahir Teman</label>
+                <input
+                  type="text"
+                  placeholder="DDMMYYYY (Contoh: 17081945)"
+                  value={tanggalLahir}
+                  onChange={(e) => setTanggalLahir(e.target.value)}
+                  className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm"
+                  maxLength={8}
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={joining}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition disabled:opacity-50 text-sm"
+              >
+                {joining ? 'Memproses...' : 'Konfirmasi & Collab'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default DetailTugasPage
+

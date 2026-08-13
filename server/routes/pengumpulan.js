@@ -130,6 +130,26 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
         xpBase, xpEarly, xpTotal,
       },
     })
+
+    // Kolaborasi: Cek dan duplikasi ke partner
+    const collab = await prisma.collabTugas.findFirst({
+      where: { tugasId, OR: [{ siswa1Id: req.user.id }, { siswa2Id: req.user.id }] }
+    })
+    if (collab) {
+      const partnerId = collab.siswa1Id === req.user.id ? collab.siswa2Id : collab.siswa1Id
+      const partnerPengumpulan = await prisma.pengumpulan.findFirst({ where: { tugasId, siswaId: partnerId } })
+      if (partnerPengumpulan) {
+        await prisma.pengumpulan.update({
+          where: { id: partnerPengumpulan.id },
+          data: { namaFile: path.basename(finalPath), path: finalPath, ukuran: file.size, xpBase, xpEarly, xpTotal }
+        })
+      } else {
+        await prisma.pengumpulan.create({
+          data: { tugasId, siswaId: partnerId, namaFile: path.basename(finalPath), path: finalPath, ukuran: file.size, xpBase, xpEarly, xpTotal }
+        })
+      }
+    }
+
     req.app.get('io').emit('pengumpulan-baru', pengumpulan)
     // Log aktivitas UPLOAD
     await catatAktivitas({
