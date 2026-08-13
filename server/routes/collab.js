@@ -5,6 +5,45 @@ import authMiddleware from '../middleware/authMiddleware.js'
 const prisma = new PrismaClient()
 const router = express.Router()
 
+// GET: Cari siswa berdasarkan kelas dan rombel (Manual Search)
+router.get('/manual/search-siswa', authMiddleware, async (req, res) => {
+  if (req.user.role !== 'siswa') return res.status(403).json({ message: 'Akses ditolak.' })
+  try {
+    const { kelas, rombel, tugasId } = req.query
+    if (!kelas || !rombel || !tugasId) {
+      return res.status(400).json({ message: 'Parameter kelas, rombel, dan tugasId diperlukan.' })
+    }
+
+    const myId = req.user.id
+
+    // Ambil siswa di kelas & rombel target yang bukan diri sendiri
+    const listSiswa = await prisma.siswa.findMany({
+      where: {
+        kelas: String(kelas),
+        rombel: String(rombel),
+        id: { not: myId }
+      },
+      select: { id: true, nama: true }
+    })
+
+    // Filter yang sudah collab di tugas ini
+    const existingCollabs = await prisma.collabTugas.findMany({
+      where: { tugasId }
+    })
+
+    const unavailableIds = new Set()
+    existingCollabs.forEach(c => {
+      unavailableIds.add(c.siswa1Id)
+      unavailableIds.add(c.siswa2Id)
+    })
+
+    const availableSiswa = listSiswa.filter(s => !unavailableIds.has(s.id))
+    res.json(availableSiswa)
+  } catch (error) {
+    res.status(500).json({ message: 'Gagal mencari siswa.', error: error.message })
+  }
+})
+
 // GET: Ambil status collab untuk tugas tertentu
 router.get('/:tugasId', authMiddleware, async (req, res) => {
   if (req.user.role !== 'siswa') return res.status(403).json({ message: 'Akses ditolak.' })
@@ -70,44 +109,7 @@ router.get('/:tugasId/teman', authMiddleware, async (req, res) => {
   }
 })
 
-// GET: Cari siswa berdasarkan kelas dan rombel (Manual Search)
-router.get('/manual/search-siswa', authMiddleware, async (req, res) => {
-  if (req.user.role !== 'siswa') return res.status(403).json({ message: 'Akses ditolak.' })
-  try {
-    const { kelas, rombel, tugasId } = req.query
-    if (!kelas || !rombel || !tugasId) {
-      return res.status(400).json({ message: 'Parameter kelas, rombel, dan tugasId diperlukan.' })
-    }
 
-    const myId = req.user.id
-
-    // Ambil siswa di kelas & rombel target yang bukan diri sendiri
-    const listSiswa = await prisma.siswa.findMany({
-      where: {
-        kelas: String(kelas),
-        rombel: String(rombel),
-        id: { not: myId }
-      },
-      select: { id: true, nama: true }
-    })
-
-    // Filter yang sudah collab di tugas ini
-    const existingCollabs = await prisma.collabTugas.findMany({
-      where: { tugasId }
-    })
-
-    const unavailableIds = new Set()
-    existingCollabs.forEach(c => {
-      unavailableIds.add(c.siswa1Id)
-      unavailableIds.add(c.siswa2Id)
-    })
-
-    const availableSiswa = listSiswa.filter(s => !unavailableIds.has(s.id))
-    res.json(availableSiswa)
-  } catch (error) {
-    res.status(500).json({ message: 'Gagal mencari siswa.', error: error.message })
-  }
-})
 
 // POST: Join collab (membutuhkan tanggal lahir siswa yang dituju)
 router.post('/join', authMiddleware, async (req, res) => {
