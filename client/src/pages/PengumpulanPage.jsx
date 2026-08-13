@@ -22,12 +22,55 @@ const findMatchedRows = (list, judul, kelas, rombel) => {
   })
 }
 
+const BonusXpInput = ({ submissionId, currentBonus, xpBonusMax, onSave }) => {
+  const [bonus, setBonus] = useState(currentBonus || 0)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (isSaving) return
+    setIsSaving(true)
+    try {
+      await onSave(submissionId, bonus)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Update local state if parent data changes
+  useEffect(() => {
+    setBonus(currentBonus || 0)
+  }, [currentBonus])
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        value={bonus}
+        onChange={(e) => setBonus(Number(e.target.value))}
+        className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+        min="0"
+        max={xpBonusMax}
+        disabled={isSaving}
+      />
+      <button
+        onClick={handleSave}
+        disabled={isSaving || bonus === (currentBonus || 0)}
+        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition disabled:opacity-50"
+      >
+        {isSaving ? '...' : 'Simpan'}
+      </button>
+    </div>
+  )
+}
+
+
 const PengumpulanPage = () => {
   const [tugasList, setTugasList] = useState([])
   const [selectedJudul, setSelectedJudul] = useState('')
   const [filterKelas, setFilterKelas] = useState('')
   const [filterRombel, setFilterRombel] = useState('')
   const [submissions, setSubmissions] = useState([])
+  const [xpBonusMax, setXpBonusMax] = useState(20) // default 20
   const [loading, setLoading] = useState(false)
   const [previewHasil, setPreviewHasil] = useState(null)
   const [previewFile, setPreviewFile] = useState(null)
@@ -123,6 +166,12 @@ const PengumpulanPage = () => {
         const res = await apiRequest('/api/tugas')
         const data = await res.json()
         setTugasList(data)
+
+        // Fetch XP Settings
+        const settingsRes = await apiRequest('/api/xp/settings')
+        const settingsData = await settingsRes.json()
+        if (settingsData.settings) setXpBonusMax(settingsData.settings.xpBonusMax || 20)
+
         if (data.length > 0) {
           const firstJudul = data[0].judul
           setSelectedJudul(firstJudul)
@@ -196,6 +245,28 @@ const PengumpulanPage = () => {
       document.body.appendChild(a); a.click(); a.remove()
       window.URL.revokeObjectURL(url)
     } catch (e) { console.error('Export failed:', e) }
+  }
+
+  const handleSaveBonus = async (submissionId, xpBonus) => {
+    if (!submissionId) return
+    try {
+      const res = await apiRequest(`/api/xp/bonus/${submissionId}`, 'PUT', { xpBonus })
+      if (!res.ok) throw new Error('Gagal menyimpan bonus')
+
+      // Update local state untuk feedback instan
+      setSubmissions(prev =>
+        prev.map(sub => {
+          const id = sub.id || sub.pengumpulanId
+          if (id === submissionId) {
+            return { ...sub, xpBonus: xpBonus }
+          }
+          return sub
+        })
+      )
+    } catch (e) {
+      console.error('Gagal menyimpan bonus XP:', e)
+      alert('Gagal menyimpan bonus: ' + e.message)
+    }
   }
 
   // --- Render ---
@@ -310,17 +381,18 @@ const PengumpulanPage = () => {
                       <th className="px-6 py-4">Ukuran</th>
                     </>
                   )}
+                  <th className="px-6 py-4">Bonus XP</th>
                   <th className="px-6 py-4">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={isMengetik ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Memuat data pengumpulan...</td>
+                    <td colSpan={isMengetik ? 9 : 8} className="px-6 py-10 text-center text-gray-400 font-medium">Memuat data pengumpulan...</td>
                   </tr>
                 ) : submissions.length === 0 ? (
                   <tr>
-                    <td colSpan={isMengetik ? 8 : 7} className="px-6 py-10 text-center text-gray-400 font-medium">Belum ada data untuk tugas ini.</td>
+                    <td colSpan={isMengetik ? 9 : 8} className="px-6 py-10 text-center text-gray-400 font-medium">Belum ada data untuk tugas ini.</td>
                   </tr>
                 ) : isMengetik ? (
                   submissions.map((sub) => (
@@ -342,6 +414,16 @@ const PengumpulanPage = () => {
                       <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKebenaran : '-'}</td>
                       <td className="px-6 py-4 text-right text-gray-700">{sub.status === 'selesai' ? sub.skorKecepatan : '-'}</td>
                       <td className="px-6 py-4 text-right font-bold text-blue-600">{sub.status === 'selesai' ? sub.skorTotal : '-'}</td>
+                      <td className="px-6 py-4">
+                        {sub.status === 'selesai' && sub.id && (
+                          <BonusXpInput 
+                            submissionId={sub.id} 
+                            currentBonus={sub.xpBonus} 
+                            xpBonusMax={xpBonusMax} 
+                            onSave={handleSaveBonus} 
+                          />
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         {sub.status === 'selesai' && (
                           <button type="button" onClick={() => setPreviewHasil(sub)}
@@ -371,6 +453,16 @@ const PengumpulanPage = () => {
                       <td className="px-6 py-4 text-gray-500">{sub.jamUpload ? new Date(sub.jamUpload).toLocaleTimeString('id-ID') : '-'}</td>
                       <td className="px-6 py-4 text-gray-500 truncate max-w-[150px]" title={sub.namaFile}>{sub.namaFile || '-'}</td>
                       <td className="px-6 py-4 text-gray-500">{sub.ukuran ? `${(sub.ukuran / 1024).toFixed(1)} KB` : '-'}</td>
+                      <td className="px-6 py-4">
+                        {sub.sudahUpload && sub.pengumpulanId && (
+                          <BonusXpInput 
+                            submissionId={sub.pengumpulanId} 
+                            currentBonus={sub.xpBonus} 
+                            xpBonusMax={xpBonusMax} 
+                            onSave={handleSaveBonus} 
+                          />
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         {sub.sudahUpload && sub.pengumpulanId && (
                           <div className="flex items-center gap-1">

@@ -223,13 +223,28 @@ router.put('/bonus/:id', authMiddleware, async (req, res) => {
     const xpCfg = await getXpConfig(prisma)
     const { xpBonus } = req.body
     const bonus = Math.min(xpCfg.xpBonusMax, Math.max(0, parseFloat(xpBonus) || 0))
-    const p = await prisma.pengumpulan.findUnique({ where: { id: req.params.id } })
+    let p = await prisma.pengumpulan.findUnique({ where: { id: req.params.id } })
+    let type = 'file'
+
+    if (!p) {
+      p = await prisma.pengumpulanMengetik.findUnique({ where: { id: req.params.id } })
+      type = 'mengetik'
+    }
+
     if (!p) return res.status(404).json({ message: 'Tidak ditemukan.' })
+
     const xpTotal = (p.xpBase || 0) + (p.xpNilai || 0) + (p.xpEarly || 0) + (p.xpPerfect || 0) + bonus
-    const updated = await prisma.pengumpulan.update({
-      where: { id: req.params.id }, data: { xpBonus: bonus, xpTotal: Math.round(xpTotal * 10) / 10 }
-    })
-    res.json({ message: 'Bonus XP disimpan.', pengumpulan: updated })
+
+    let updated
+    if (type === 'file') {
+      updated = await prisma.pengumpulan.update({
+        where: { id: req.params.id }, data: { xpBonus: bonus, xpTotal: Math.round(xpTotal * 10) / 10 }
+      })
+    } else {
+      updated = await prisma.pengumpulanMengetik.update({
+        where: { id: req.params.id }, data: { xpBonus: bonus, xpTotal: Math.round(xpTotal * 10) / 10 }
+      })
+    }    res.json({ message: 'Bonus XP disimpan.', pengumpulan: updated })
   } catch (e) { res.status(500).json({ message: 'Gagal.', error: e.message }) }
 })
 
