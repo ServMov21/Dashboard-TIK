@@ -1097,7 +1097,6 @@ const CollabWidget = ({ tugasId }) => {
   const [selectedKelas, setSelectedKelas] = useState('')
   const [selectedRombel, setSelectedRombel] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
-  const [search, setSearch] = useState('')
   const [tanggalLahir, setTanggalLahir] = useState('')
   const [error, setError] = useState('')
   const [joining, setJoining] = useState(false)
@@ -1185,12 +1184,6 @@ const CollabWidget = ({ tugasId }) => {
       setSearching(false)
     }
   }
-
-  const filteredTemanList = useMemo(() => {
-      const keyword = search.trim().toLowerCase()
-      if (!keyword) return temanList
-      return temanList.filter(t => t.nama.toLowerCase().includes(keyword))
-  }, [search, temanList])
 
   const handleJoin = async (e) => {
     e.preventDefault()
@@ -1316,18 +1309,6 @@ const CollabWidget = ({ tugasId }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Cari Nama Siswa</label>
-                <input
-                    type="search"
-                    placeholder="Ketik nama untuk memfilter..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm"
-                    disabled={!selectedRombel}
-                />
-              </div>
-
-              <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Pilih Teman</label>
                 <select
                   value={selectedPartnerId}
@@ -1336,7 +1317,7 @@ const CollabWidget = ({ tugasId }) => {
                   required
                 >
                   <option value="">-- Pilih Teman --</option>
-                  {filteredTemanList.map((t) => (
+                  {temanList.map((t) => (
                     <option key={t.id} value={t.id}>{t.nama}</option>
                   ))}
                 </select>
