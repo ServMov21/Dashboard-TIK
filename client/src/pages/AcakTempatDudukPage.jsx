@@ -3,6 +3,28 @@ import { motion } from 'framer-motion'
 import { Users, Shuffle, Monitor, RefreshCw, UserCheck, UserX, AlertTriangle, Maximize2, X } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 
+const LAST_SELECTION_KEY = 'acak-tempat-duduk:last-selection'
+const getRoomStateKey = (kelasValue, rombelValue) => `acak-tempat-duduk:room-state:${kelasValue || ''}:${rombelValue || ''}`
+
+const readStorageJson = (key, fallback = null) => {
+  try {
+    if (typeof window === 'undefined') return fallback
+    const raw = window.localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+const writeStorageJson = (key, value) => {
+  try {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // ignore storage failure
+  }
+}
+
 const AcakTempatDudukPage = () => {
   const [kelas, setKelas] = useState('')
   const [rombel, setRombel] = useState('')
@@ -22,7 +44,24 @@ const AcakTempatDudukPage = () => {
 
   useEffect(() => {
     fetchKelasDinamis()
+    const savedSelection = readStorageJson(LAST_SELECTION_KEY)
+    if (savedSelection?.kelas) {
+      setKelas(savedSelection.kelas)
+      setRombel(savedSelection.rombel || '')
+    }
   }, [])
+
+  useEffect(() => {
+    if (kelas || rombel) {
+      writeStorageJson(LAST_SELECTION_KEY, { kelas, rombel })
+    }
+  }, [kelas, rombel])
+
+  useEffect(() => {
+    if (kelas && rombel) {
+      writeStorageJson(getRoomStateKey(kelas, rombel), { mustPairIds, tidakMasukIds, tagMode })
+    }
+  }, [kelas, rombel, mustPairIds, tidakMasukIds, tagMode])
 
   const fetchKelasDinamis = async () => {
     try {
@@ -42,8 +81,10 @@ const AcakTempatDudukPage = () => {
     try {
       const res = await apiRequest(`/api/siswa/login-rombel?kelas=${encodeURIComponent(kelas)}`)
       const data = await res.json()
-      if (res.ok) setRombelList(data)
-      setRombel('')
+      if (res.ok) {
+        setRombelList(data)
+        setRombel(prev => (data.includes(prev) ? prev : ''))
+      }
     } catch (e) {
       console.error(e)
     }
@@ -58,19 +99,34 @@ const AcakTempatDudukPage = () => {
       const res = await apiRequest('/api/siswa')
       const data = await res.json()
       setListSiswa(data.filter(s => s.kelas === kelas && s.rombel === rombel))
-      setMustPairIds([])
-      setTidakMasukIds([])
-      
-      // Load previous state
-      fetchSavedState()
+      await restoreSavedRoomState(kelas, rombel)
     } catch (e) {
       console.error('Error fetch siswa:', e)
     }
   }
 
-  const fetchSavedState = async () => {
+  const restoreSavedRoomState = async (kelasValue, rombelValue) => {
     try {
-      const res = await apiRequest(`/api/acak/state?kelas=${encodeURIComponent(kelas)}&rombel=${encodeURIComponent(rombel)}`)
+      const savedTags = readStorageJson(getRoomStateKey(kelasValue, rombelValue))
+      if (savedTags) {
+        setMustPairIds(Array.isArray(savedTags.mustPairIds) ? savedTags.mustPairIds : [])
+        setTidakMasukIds(Array.isArray(savedTags.tidakMasukIds) ? savedTags.tidakMasukIds : [])
+        setTagMode(savedTags.tagMode || 'pair')
+      } else {
+        setMustPairIds([])
+        setTidakMasukIds([])
+        setTagMode('pair')
+      }
+    } catch (e) {
+      console.error('Error restore tag state:', e)
+    }
+
+    await fetchSavedState(kelasValue, rombelValue)
+  }
+
+  const fetchSavedState = async (kelasValue, rombelValue) => {
+    try {
+      const res = await apiRequest(`/api/acak/state?kelas=${encodeURIComponent(kelasValue)}&rombel=${encodeURIComponent(rombelValue)}`)
       const data = await res.json()
       if (data) {
         setDevices(data.devices)
