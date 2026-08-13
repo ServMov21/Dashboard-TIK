@@ -1092,10 +1092,6 @@ const CollabWidget = ({ tugasId }) => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [temanList, setTemanList] = useState([])
-  const [kelasList, setKelasList] = useState([])
-  const [rombelList, setRombelList] = useState([])
-  const [selectedKelas, setSelectedKelas] = useState('')
-  const [selectedRombel, setSelectedRombel] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
   const [tanggalLahir, setTanggalLahir] = useState('')
   const [error, setError] = useState('')
@@ -1105,34 +1101,6 @@ const CollabWidget = ({ tugasId }) => {
   useEffect(() => {
     fetchCollabStatus()
   }, [tugasId])
-
-  useEffect(() => {
-    if (showModal) {
-        fetchKelas()
-    }
-  }, [showModal])
-
-  useEffect(() => {
-    setSelectedRombel('')
-    setTemanList([])
-    if (selectedKelas) fetchRombel(selectedKelas)
-  }, [selectedKelas])
-
-  const fetchKelas = async () => {
-      try {
-          const res = await apiRequest('/api/siswa/login-kelas')
-          const data = await res.json()
-          if(res.ok) setKelasList(data)
-      } catch (e) { console.error(e) }
-  }
-
-  const fetchRombel = async (kelas) => {
-      try {
-          const res = await apiRequest(`/api/siswa/login-rombel?kelas=${encodeURIComponent(kelas)}`)
-          const data = await res.json()
-          if(res.ok) setRombelList(data)
-      } catch (e) { console.error(e) }
-  }
 
   const fetchCollabStatus = async () => {
     try {
@@ -1147,46 +1115,26 @@ const CollabWidget = ({ tugasId }) => {
   }
 
   const handleOpenCollab = async () => {
-    console.log('handleOpenCollab triggered')
     setError('')
-    setSelectedKelas('')
-    setSelectedRombel('')
     setTemanList([])
     setSelectedPartnerId('')
     setTanggalLahir('')
-    setShowModal(true)
-  }
-
-  useEffect(() => {
-    if (selectedKelas && selectedRombel) {
-        handleSearchSiswa()
-    } else {
-        setTemanList([])
-    }
-  }, [selectedKelas, selectedRombel])
-
-  const handleSearchSiswa = async () => {
-    setError('')
     setSearching(true)
-    setTemanList([])
-    setSelectedPartnerId('')
+    
     try {
-      const query = new URLSearchParams({ kelas: selectedKelas, rombel: selectedRombel })
-      const res = await apiRequest(`/api/siswa/login-list?${query}`)
+      const res = await apiRequest(`/api/collab/${tugasId}/teman`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Gagal mencari siswa.')
-
-      const currentSiswaId = JSON.parse(localStorage.getItem('user') || '{}').id
-      const daftarTeman = data.filter((siswa) => siswa.id !== currentSiswaId)
-      setTemanList(daftarTeman)
-
-      if (daftarTeman.length === 0) {
-        setError('Tidak ada teman di kelas dan rombel tersebut.')
+      if (!res.ok) throw new Error(data.message || 'Gagal mengambil daftar teman.')
+      
+      setTemanList(data)
+      if (data.length === 0) {
+        setError('Tidak ada teman sekelas yang tersedia untuk kolaborasi.')
       }
     } catch (e) {
-      setError(e.message || 'Gagal mencari siswa.')
+      setError(e.message || 'Gagal mengambil daftar teman.')
     } finally {
       setSearching(false)
+      setShowModal(true)
     }
   }
 
@@ -1287,32 +1235,6 @@ const CollabWidget = ({ tugasId }) => {
             )}
 
             <form onSubmit={handleJoin} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kelas</label>
-                  <select
-                    value={selectedKelas}
-                    onChange={(e) => setSelectedKelas(e.target.value)}
-                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
-                  >
-                    <option value="">-- Pilih Kelas --</option>
-                    {kelasList.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Rombel</label>
-                  <select
-                    value={selectedRombel}
-                    onChange={(e) => setSelectedRombel(e.target.value)}
-                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
-                    disabled={!selectedKelas}
-                  >
-                    <option value="">-- Pilih Rombel --</option>
-                    {rombelList.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Pilih Teman</label>
                 <select

@@ -88,7 +88,7 @@ router.get('/:tugasId/teman', authMiddleware, async (req, res) => {
         rombel: saya.rombel,
         id: { not: myId }
       },
-      select: { id: true, nama: true }
+      select: { id: true, nama: true, isOnline: true, lastActivityAt: true }
     })
 
     // Filter teman yang belum memiliki collab di tugas ini
@@ -102,7 +102,18 @@ router.get('/:tugasId/teman', authMiddleware, async (req, res) => {
       unavailableIds.add(c.siswa2Id)
     })
 
-    const availableTeman = temanSekelas.filter(t => !unavailableIds.has(t.id))
+    const setting = await prisma.pengaturan.findUnique({ where: { id: '1' } })
+    const jamLogout = setting ? setting.jamLogout : 60
+    const threshold = new Date(Date.now() - jamLogout * 60 * 1000)
+
+    const availableTeman = temanSekelas
+      .filter(t => !unavailableIds.has(t.id))
+      .map(t => ({
+        id: t.id,
+        nama: t.nama,
+        isCurrentlyOnline: t.isOnline && t.lastActivityAt && new Date(t.lastActivityAt) >= threshold
+      }))
+
     res.json(availableTeman)
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil daftar teman.', error: error.message })
