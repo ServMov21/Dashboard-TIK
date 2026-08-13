@@ -1092,10 +1092,16 @@ const CollabWidget = ({ tugasId }) => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [temanList, setTemanList] = useState([])
+  const [selectedKelas, setSelectedKelas] = useState('')
+  const [selectedRombel, setSelectedRombel] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
   const [tanggalLahir, setTanggalLahir] = useState('')
   const [error, setError] = useState('')
   const [joining, setJoining] = useState(false)
+  const [searching, setSearching] = useState(false)
+
+  const KELAS_OPTIONS = ['1', '2', '3', '4', '5', '6']
+  const ROMBEL_OPTIONS = ['A', 'B', 'C', 'D']
 
   useEffect(() => {
     fetchCollabStatus()
@@ -1116,17 +1122,36 @@ const CollabWidget = ({ tugasId }) => {
   const handleOpenCollab = async () => {
     console.log('handleOpenCollab triggered')
     setError('')
+    setSelectedKelas('')
+    setSelectedRombel('')
+    setTemanList([])
     setSelectedPartnerId('')
     setTanggalLahir('')
     setShowModal(true)
+  }
+
+  const handleSearchSiswa = async () => {
+    if (!selectedKelas || !selectedRombel) {
+      setError('Pilih kelas dan rombel terlebih dahulu.')
+      return
+    }
+    setError('')
+    setSearching(true)
+    setTemanList([])
+    setSelectedPartnerId('')
     try {
-      console.log(`Fetching teman list for tugasId: ${tugasId}`)
-      const res = await apiRequest(`/api/collab/${tugasId}/teman`)
+      const res = await apiRequest(`/api/collab/manual/search-siswa?kelas=${selectedKelas}&rombel=${selectedRombel}&tugasId=${tugasId}`)
       const data = await res.json()
-      console.log('Teman list fetched:', data)
-      setTemanList(Array.isArray(data) ? data : []) // Ensure it's an array
+      if (!res.ok) throw new Error(data.message)
+      setTemanList(Array.isArray(data) ? data : [])
+      if (data.length === 0) {
+        setError('Tidak ada teman tersedia di kelas/rombel tersebut.')
+      }
     } catch (e) {
       console.error('Error fetching teman list:', e)
+      setError(e.message)
+    } finally {
+      setSearching(false)
     }
   }
 
@@ -1227,13 +1252,56 @@ const CollabWidget = ({ tugasId }) => {
             )}
 
             <form onSubmit={handleJoin} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kelas</label>
+                  <select
+                    value={selectedKelas}
+                    onChange={(e) => {
+                      setSelectedKelas(e.target.value)
+                      setTemanList([])
+                      setSelectedPartnerId('')
+                    }}
+                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
+                  >
+                    <option value="">-- Kelas --</option>
+                    {KELAS_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Rombel</label>
+                  <select
+                    value={selectedRombel}
+                    onChange={(e) => {
+                      setSelectedRombel(e.target.value)
+                      setTemanList([])
+                      setSelectedPartnerId('')
+                    }}
+                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
+                  >
+                    <option value="">-- Rombel --</option>
+                    {ROMBEL_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSearchSiswa}
+                disabled={searching || !selectedKelas || !selectedRombel}
+                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition disabled:opacity-50 text-sm border border-gray-200"
+              >
+                {searching ? 'Mencari...' : 'Cari Teman'}
+              </button>
+
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Teman Satu Kelas</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Pilih Teman</label>
                 <select
                   value={selectedPartnerId}
                   onChange={(e) => setSelectedPartnerId(e.target.value)}
                   className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
                   required
+                  disabled={temanList.length === 0}
                 >
                   <option value="">-- Pilih Teman --</option>
                   {temanList && temanList.map((t) => (
