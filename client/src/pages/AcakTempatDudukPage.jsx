@@ -57,12 +57,32 @@ const AcakTempatDudukPage = () => {
     try {
       const res = await apiRequest('/api/siswa')
       const data = await res.json()
-      // Filter lokal untuk demo
       setListSiswa(data.filter(s => s.kelas === kelas && s.rombel === rombel))
       setMustPairIds([])
       setTidakMasukIds([])
+      
+      // Load previous state
+      fetchSavedState()
     } catch (e) {
       console.error('Error fetch siswa:', e)
+    }
+  }
+
+  const fetchSavedState = async () => {
+    try {
+      const res = await apiRequest(`/api/acak/state?kelas=${encodeURIComponent(kelas)}&rombel=${encodeURIComponent(rombel)}`)
+      const data = await res.json()
+      if (data) {
+        setDevices(data.devices)
+        setTidakMasukResult(data.tidakMasuk)
+        setRingkasan(data.ringkasan)
+      } else {
+        setDevices([])
+        setTidakMasukResult([])
+        setRingkasan(null)
+      }
+    } catch (e) {
+      console.error('Error fetch state:', e)
     }
   }
 

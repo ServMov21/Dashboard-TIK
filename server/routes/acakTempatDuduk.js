@@ -208,34 +208,23 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
       if (s) { devices[idx].students = [s]; used.add(idx) }
     }
 
-    // Overflow: siswa yang masih tersisa, masukkan ke device yang baru punya 1
-    const overflow = [...mQueue, ...fQueue]
+    // Siswa yang masih tersisa, prioritaskan isi device yang masih kosong total
+    // baru kemudian isi device yang sudah punya 1 (menjadi pair)
+    const overflow = [...mQueue, ...fQueue].reverse()
     if (overflow.length > 0) {
-      const available = shuffle(
-        devices.filter((d) => d.students.length === 1).map(d => d)
-      )
-      for (const student of overflow) {
-        // Cari yang gender sama dulu
-        let placed = false
-        for (let i = 0; i < available.length; i++) {
-          if (available[i].students.length < 2 && sameGender(available[i].students[0], student)) {
-            available[i].students.push(student); placed = true; break
-          }
+      // 1. Cari yang kosong total (jika ada PC yang terlewat atau used tidak sinkron)
+      for (const d of devices) {
+        if (d.students.length === 0 && overflow.length > 0) {
+          d.students = [overflow.pop()]
         }
-        if (!placed) {
-          // Gender beda pun boleh, daripada tidak duduk
-          for (let i = 0; i < available.length; i++) {
-            if (available[i].students.length < 2) {
-              available[i].students.push(student); placed = true; break
-            }
-          }
-        }
-        if (!placed) {
-          // Semua device penuh 2, cari yang masih kosong total
-          for (const d of devices) {
-            if (d.students.length === 0) { d.students = [student]; break }
-          }
-        }
+      }
+      
+      // 2. Isi ke device yang baru punya 1
+      const hasOne = shuffle(devices.filter(d => d.students.length === 1))
+      for (const d of hasOne) {
+        if (overflow.length === 0) break
+        const student = overflow.pop()
+        d.students.push(student)
       }
     }
 
@@ -251,9 +240,47 @@ router.post('/shuffle', authMiddleware, async (req, res) => {
         pasanganLaki: autoPairsL.length + taggedPairs.filter((p) => p.gender === 'L').length,
         pasanganPerempuan: autoPairsP.length + taggedPairs.filter((p) => p.gender === 'P').length,
       },
+    }
+
+    // Save state to DB
+    await prisma.acakState.upsert({
+      where: { kelas_rombel: { kelas, rombel } },
+      update: {
+        devices: JSON.stringify(result.devices),
+        ringkasan: JSON.stringify(result.ringkasan),
+        tidakMasuk: JSON.stringify(result.tidakMasuk),
+      },
+      create: {
+        kelas,
+        rombel,
+        devices: JSON.stringify(result.devices),
+        ringkasan: JSON.stringify(result.ringkasan),
+        tidakMasuk: JSON.stringify(result.tidakMasuk),
+      }
+    })
+
+    res.json(result)
+  } catch (error) {
+    console.error('Shuffle error:', error)
+    res.status(500).json({ message: 'Gagal mengacak tempat duduk.', error: error.message })
+  }
+})
+
+router.get('/state', authMiddleware, async (req, res) => {
+  const { kelas, rombel } = req.query
+  try {
+    const state = await prisma.acakState.findUnique({
+      where: { kelas_rombel: { kelas, rombel } }
+    })
+    if (!state) return res.json(null)
+
+    res.json({
+      devices: JSON.parse(state.devices),
+      ringkasan: JSON.parse(state.ringkasan),
+      tidakMasuk: JSON.parse(state.tidakMasuk)
     })
   } catch (error) {
-    res.status(500).json({ message: 'Gagal mengacak tempat duduk.', error: error.message })
+    res.status(500).json({ message: 'Gagal mengambil status acak.', error: error.message })
   }
 })
 
