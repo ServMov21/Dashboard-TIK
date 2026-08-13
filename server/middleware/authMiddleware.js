@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken'
+import { PrismaClient } from '@prisma/client'
 
+const prisma = new PrismaClient()
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
   console.error('FATAL: JWT_SECRET environment variable is not set. Exiting.')
@@ -18,6 +20,18 @@ export default function authMiddleware(req, res, next) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
     req.user = decoded
+
+    // Update last activity siswa secara async (tidak memblokir request)
+    if (decoded && decoded.role === 'siswa') {
+      prisma.siswa.update({
+        where: { id: decoded.id },
+        data: {
+          lastActivityAt: new Date(),
+          isOnline: true
+        }
+      }).catch(err => console.error('Gagal update lastActivityAt:', err))
+    }
+
     next()
   } catch (error) {
     return res.status(401).json({ message: 'Token tidak valid atau kedaluwarsa.' })

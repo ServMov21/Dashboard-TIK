@@ -1323,7 +1323,9 @@ const CollabWidget = ({ tugasId }) => {
                 >
                   <option value="">-- Pilih Teman --</option>
                   {temanList.map((t) => (
-                    <option key={t.id} value={t.id}>{t.nama}</option>
+                    <option key={t.id} value={t.id} disabled={t.isCurrentlyOnline}>
+                      {t.nama} {t.isCurrentlyOnline ? '(Sedang Login)' : ''}
+                    </option>
                   ))}
                 </select>
               </div>

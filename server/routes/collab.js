@@ -137,6 +137,15 @@ router.post('/join', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Tanggal lahir siswa tidak sesuai.' })
     }
 
+    // Cek apakah partner sedang login/aktif
+    const setting = await prisma.pengaturan.findUnique({ where: { id: '1' } })
+    const jamLogout = setting ? setting.jamLogout : 60
+    const threshold = new Date(Date.now() - jamLogout * 60 * 1000)
+
+    if (partner.isOnline && partner.lastActivityAt && new Date(partner.lastActivityAt) >= threshold) {
+        return res.status(400).json({ message: 'User sedang login, harap logout untuk bisa COLLAB.' })
+    }
+
     // Cek jika salah satu sudah punya collab
     const existingCollab = await prisma.collabTugas.findFirst({
       where: {

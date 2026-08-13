@@ -81,12 +81,27 @@ router.get('/login-list', async (req, res) => {
     if (kelas) whereClause.kelas = kelas
     if (rombel) whereClause.rombel = rombel
 
+    const setting = await prisma.pengaturan.findUnique({ where: { id: '1' } })
+    const jamLogout = setting ? setting.jamLogout : 60
+    const threshold = new Date(Date.now() - jamLogout * 60 * 1000)
+
     const siswa = await prisma.siswa.findMany({
       where: whereClause,
-      select: { id: true, nama: true, kelas: true, rombel: true },
+      select: { id: true, nama: true, kelas: true, rombel: true, isOnline: true, lastActivityAt: true },
       orderBy: [{ kelas: 'asc' }, { rombel: 'asc' }, { nama: 'asc' }],
     })
-    res.json(siswa)
+
+    const result = siswa.map(s => {
+      const isCurrentlyOnline = s.isOnline && s.lastActivityAt && new Date(s.lastActivityAt) >= threshold
+      return {
+        id: s.id,
+        nama: s.nama,
+        kelas: s.kelas,
+        rombel: s.rombel,
+        isCurrentlyOnline: !!isCurrentlyOnline
+      }
+    })
+    res.json(result)
   } catch (error) {
     res.status(500).json({ message: 'Gagal mengambil daftar siswa.', error: error.message })
   }

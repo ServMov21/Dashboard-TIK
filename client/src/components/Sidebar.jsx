@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { apiRequest } from '../utils/api'
 import {
   Home, Layout, ClipboardList, Upload, Users,
   Settings, LogOut, HardDrive, Share2, Zap,
@@ -37,7 +38,12 @@ const Sidebar = ({ user }) => {
     { icon: Zap, label: 'Quick Share', path: '/siswa/quick' },
   ]
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiRequest('/api/auth/logout', { method: 'POST', skipAuthRedirect: true })
+    } catch (e) {
+      console.error('Gagal memanggil API logout:', e)
+    }
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     navigate('/login')

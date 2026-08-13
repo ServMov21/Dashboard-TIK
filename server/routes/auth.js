@@ -69,6 +69,15 @@ router.post('/login-siswa', async (req, res) => {
       return res.status(401).json({ message: 'Password salah.' })
     }
 
+    // Update status online
+    await prisma.siswa.update({
+      where: { id: siswa.id },
+      data: {
+        isOnline: true,
+        lastActivityAt: new Date()
+      }
+    })
+
     const token = jwt.sign(
       { id: siswa.id, role: 'siswa', nama: siswa.nama, kelas: siswa.kelas, rombel: siswa.rombel },
       JWT_SECRET,
@@ -87,7 +96,7 @@ router.post('/login-siswa', async (req, res) => {
         siswaId: siswa.id,
         tugasId: null,
         jenis: JENIS_AKTIVITAS.LOGIN,
-        deskripsi: 'Login ke dashboard',
+        body: 'Login ke dashboard',
         io: req.app.get('io')
       })
     } catch (e) {
@@ -99,7 +108,22 @@ router.post('/login-siswa', async (req, res) => {
 })
 
 // Logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1]
+      const decoded = jwt.verify(token, JWT_SECRET)
+      if (decoded && decoded.role === 'siswa') {
+        await prisma.siswa.update({
+          where: { id: decoded.id },
+          data: { isOnline: false }
+        })
+      }
+    }
+  } catch (e) {
+    console.error('Gagal update status online saat logout:', e)
+  }
   res.json({ message: 'Logout berhasil.' })
 })
 

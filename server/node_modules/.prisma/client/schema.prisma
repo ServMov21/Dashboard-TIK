@@ -23,6 +23,8 @@ model Siswa {
   jenisKelamin        String
   nis                 String?
   password            String
+  lastActivityAt      DateTime?
+  isOnline            Boolean               @default(false)
   aktivitas           AktivitasSiswa[]
   collab2             CollabTugas[]         @relation("Siswa2")
   collab1             CollabTugas[]         @relation("Siswa1")
