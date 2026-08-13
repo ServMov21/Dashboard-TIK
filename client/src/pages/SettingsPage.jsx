@@ -159,8 +159,15 @@ const GeneralSettingsSection = ({ form, handleChange, message, error, handleSave
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><HardDrive className="w-5 h-5 text-green-500" /> Konfigurasi Folder Local Disk</h2>
         <div className="space-y-4">
-          <Input label="Root Storage Path" name="baseDir" value={form.baseDir} onChange={handleChange} placeholder="D:\\Dashboard_TIK\\" />
-          <p className="text-xs text-gray-500 -mt-2">Pastikan path diakhiri dengan double backslash (\\\\) jika di Windows.</p>
+          <FolderInput 
+            label="Root Storage Path" 
+            name="baseDir" 
+            value={form.baseDir} 
+            onChange={handleChange} 
+            placeholder="D:\\Dashboard_TIK\\" 
+            description="Pastikan path diakhiri dengan double backslash (\\\\) jika di Windows."
+            apiRequest={apiRequest}
+          />
         </div>
       </div>
       
@@ -305,7 +312,7 @@ const XpSettingsSection = ({ apiRequest: api }) => {
 };
 
 // ─── Generic Form Components ─────────────────────────────────────────────────
-const Input = ({ label, name, value, onChange, placeholder, type = 'text' }) => (
+const Input = ({ label, name, value, onChange, placeholder, type = 'text', description }) => (
   <div>
     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
     <input
@@ -315,8 +322,55 @@ const Input = ({ label, name, value, onChange, placeholder, type = 'text' }) => 
       className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
       placeholder={placeholder}
     />
+    {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
   </div>
 );
+
+const FolderInput = ({ label, name, value, onChange, placeholder, description, apiRequest }) => {
+  const [picking, setPicking] = useState(false);
+
+  const handlePick = async () => {
+    setPicking(true);
+    try {
+      const res = await apiRequest('/api/pengaturan/pilih-folder', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.path) {
+        onChange(name, data.path);
+      } else if (!res.ok) {
+        alert(data.message || 'Gagal membuka pemilih folder');
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(name, e.target.value)}
+          className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          onClick={handlePick}
+          disabled={picking}
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 disabled:opacity-50 border border-gray-200 transition flex items-center gap-2 whitespace-nowrap"
+        >
+          <FolderTree className="w-4 h-4 text-gray-500" />
+          {picking ? 'Memilih...' : 'Pilih Folder'}
+        </button>
+      </div>
+      {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+    </div>
+  );
+};
 
 const Select = ({ label, name, value, onChange, options }) => (
   <div>
@@ -399,12 +453,13 @@ const BackupSettingsSection = ({ form, handleChange, apiRequest }) => {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h2 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2"><Files className="w-5 h-5 text-blue-500" /> Backup Data</h2>
         <div className="space-y-4">
-          <Input 
+          <FolderInput 
             label="Folder Tujuan Backup" 
             name="backupDir" 
             value={form.backupDir} 
             onChange={handleChange} 
             placeholder="C:\\Dashboard_TIK_Backup" 
+            apiRequest={apiRequest}
           />
           <Switch 
             label="Aktifkan Auto-Backup" 
