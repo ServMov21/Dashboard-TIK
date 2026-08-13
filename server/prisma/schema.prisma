@@ -15,46 +15,46 @@ model Guru {
 }
 
 model Siswa {
-  id            String        @id @default(uuid())
-  nama          String
-  tanggalLahir  DateTime
-  kelas         String
-  rombel        String
-  jenisKelamin  String
-  nis           String?
-  password      String
-  pengumpulan   Pengumpulan[]
+  id                  String                @id @default(uuid())
+  nama                String
+  tanggalLahir        DateTime
+  kelas               String
+  rombel              String
+  jenisKelamin        String
+  nis                 String?
+  password            String
+  aktivitas           AktivitasSiswa[]
+  collab2             CollabTugas[]         @relation("Siswa2")
+  collab1             CollabTugas[]         @relation("Siswa1")
+  kehadiran           Kehadiran[]
+  pengumpulan         Pengumpulan[]
   pengumpulanMengetik PengumpulanMengetik[]
-  aktivitas     AktivitasSiswa[]
-  xpPenalti     XpPenalti[]
-  kehadiran     Kehadiran[]
-  collab1       CollabTugas[] @relation("Siswa1")
-  collab2       CollabTugas[] @relation("Siswa2")
+  xpPenalti           XpPenalti[]
 }
 
 model Tugas {
-  id               String          @id @default(uuid())
-  judul            String
-  deskripsi        String?
-  jenis            String
-  status           String          @default("draft")
-  publishedAt      DateTime?
-  closedAt         DateTime?
-  deadline         DateTime?
-  kelasTarget      String
-  rombelTarget     String?
-  batchId          String?
-  naskahMengetik   String?
-  bobotKebenaran   Float?
-  bobotKecepatan   Float?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  lampiran         LampiranTugas[]
-  pengumpulan      Pengumpulan[]
+  id                  String                @id @default(uuid())
+  judul               String
+  deskripsi           String?
+  jenis               String
+  status              String                @default("draft")
+  deadline            DateTime?
+  kelasTarget         String
+  rombelTarget        String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  batchId             String?
+  naskahMengetik      String?
+  bobotKebenaran      Float?
+  bobotKecepatan      Float?
+  closedAt            DateTime?
+  publishedAt         DateTime?
+  aktivitas           AktivitasSiswa[]
+  collab              CollabTugas[]
+  lampiran            LampiranTugas[]
+  pengumpulan         Pengumpulan[]
   pengumpulanMengetik PengumpulanMengetik[]
-  aktivitas        AktivitasSiswa[]
-  xpPenalti        XpPenalti[]
-  collab           CollabTugas[]
+  xpPenalti           XpPenalti[]
 
   @@index([batchId])
 }
@@ -68,24 +68,24 @@ model LampiranTugas {
 }
 
 model Pengumpulan {
-  id          String   @id @default(uuid())
-  tugasId     String
-  siswaId     String
-  namaFile    String
-  path        String
-  ukuran      Int
-  nilai       Float?   // Nilai yang diberikan guru (0–100)
-  keterangan  String?  // Catatan/keterangan dari guru
-  xpBase      Float    @default(0)
-  xpNilai     Float    @default(0)
-  xpEarly     Float    @default(0)
-  xpPerfect   Float    @default(0)
-  xpBonus     Float    @default(0)
-  xpTotal     Float    @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  tugas       Tugas    @relation(fields: [tugasId], references: [id], onDelete: Cascade)
-  siswa       Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  tugasId    String
+  siswaId    String
+  namaFile   String
+  path       String
+  ukuran     Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  nilai      Float?
+  keterangan String?
+  xpBase     Float    @default(0)
+  xpNilai    Float    @default(0)
+  xpEarly    Float    @default(0)
+  xpPerfect  Float    @default(0)
+  xpBonus    Float    @default(0)
+  xpTotal    Float    @default(0)
+  siswa      Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  tugas      Tugas    @relation(fields: [tugasId], references: [id], onDelete: Cascade)
 }
 
 model PengumpulanMengetik {
@@ -100,16 +100,16 @@ model PengumpulanMengetik {
   skorKebenaran Float     @default(0)
   skorKecepatan Float     @default(0)
   skorTotal     Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   xpBase        Float     @default(0)
   xpNilai       Float     @default(0)
   xpEarly       Float     @default(0)
   xpPerfect     Float     @default(0)
   xpBonus       Float     @default(0)
   xpTotal       Float     @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  tugas         Tugas     @relation(fields: [tugasId], references: [id], onDelete: Cascade)
   siswa         Siswa     @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  tugas         Tugas     @relation(fields: [tugasId], references: [id], onDelete: Cascade)
 
   @@unique([tugasId, siswaId])
   @@index([tugasId])
@@ -123,8 +123,8 @@ model AktivitasSiswa {
   jenis     String
   deskripsi String?
   createdAt DateTime @default(now())
+  tugas     Tugas?   @relation(fields: [tugasId], references: [id])
   siswa     Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  tugas     Tugas?   @relation(fields: [tugasId], references: [id], onDelete: SetNull)
 
   @@index([siswaId])
   @@index([tugasId])
@@ -133,18 +133,18 @@ model AktivitasSiswa {
 }
 
 model Pengaturan {
-  id                      String  @id @default("1")
-  logoPath                String?
-  namaSekolah             String  @default("Sekolah Kita")
-  alamat                  String?
-  baseDir                 String  @default("./storage")
-  tema                    String  @default("light")
-  jamLogout               Int     @default(60)
-  submissionFolderPattern String  @default("KELAS_ROMBEL/NAMA_TUGAS")
-  duplicateFileHandling   String  @default("RENAME_INCREMENT")
-  backupDir               String?
-  autoBackupEnabled       Boolean @default(false)
-  autoBackupIntervalSeconds Int   @default(3600)
+  id                        String  @id @default("1")
+  logoPath                  String?
+  namaSekolah               String  @default("Sekolah Kita")
+  alamat                    String?
+  baseDir                   String  @default("./storage")
+  tema                      String  @default("light")
+  jamLogout                 Int     @default(60)
+  submissionFolderPattern   String  @default("KELAS_ROMBEL/NAMA_TUGAS")
+  duplicateFileHandling     String  @default("RENAME_INCREMENT")
+  backupDir                 String?
+  autoBackupEnabled         Boolean @default(false)
+  autoBackupIntervalSeconds Int     @default(3600)
 }
 
 model QuickShareRoom {
@@ -153,13 +153,13 @@ model QuickShareRoom {
   nama       String
   password   String?
   mode       String
-  hostId     String?
-  hostRole   String?
   batasWaktu DateTime
   batasSize  Int?
   batasFile  Int?
   status     String           @default("aktif")
   createdAt  DateTime         @default(now())
+  hostId     String?
+  hostRole   String?
   files      QuickShareFile[]
 
   @@index([hostId])
@@ -178,36 +178,29 @@ model QuickShareFile {
 }
 
 model XpSetting {
-  id          String @id @default("1")
-  xpBase      Float  @default(80)
-  xpNilai70   Float  @default(20)
-  xpNilai80   Float  @default(40)
-  xpNilai90   Float  @default(70)
-  xpNilai100  Float  @default(100)
-  xpEarly     Float  @default(25)
-  xpPerfect   Float  @default(70)
-  xpBonusMax  Float  @default(20)
-  xpPenaltiTidakKumpul Float @default(-50)
-  titleConfig String @default("[]")
+  id                   String @id @default("1")
+  xpBase               Float  @default(80)
+  xpNilai70            Float  @default(20)
+  xpNilai80            Float  @default(40)
+  xpNilai90            Float  @default(70)
+  xpNilai100           Float  @default(100)
+  xpEarly              Float  @default(25)
+  xpPerfect            Float  @default(70)
+  xpBonusMax           Float  @default(20)
+  titleConfig          String @default("[]")
+  xpPenaltiTidakKumpul Float  @default(-50)
 }
 
-// Riwayat pengurangan XP: diterapkan pada siswa yang tidak mengerjakan/tidak
-// mengumpulkan tugas setelah tugas ditutup guru.
-// "Recently Deleted" / Sampah — snapshot hasil tugas siswa (file maupun mengetik)
-// yang dihapus guru. Record asli tetap dihapus dari tabel Pengumpulan/
-// PengumpulanMengetik (supaya siswa bisa mengumpulkan ulang), tapi seluruh
-// datanya disalin ke sini dulu sehingga guru bisa melihat riwayat hapus dan
-// memulihkannya (Restore) selama siswa belum mengumpulkan ulang.
 model SampahPengumpulan {
-  id          String   @id @default(uuid())
-  jenis       String   // 'file' | 'mengetik'
-  originalId  String   // id record asli sebelum dihapus
-  tugasId     String
-  siswaId     String
-  tugasJudul  String
-  siswaNama   String
-  dataJson    String   // snapshot lengkap field record asli (JSON)
-  deletedAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  jenis      String
+  originalId String
+  tugasId    String
+  siswaId    String
+  tugasJudul String
+  siswaNama  String
+  dataJson   String
+  deletedAt  DateTime @default(now())
 
   @@index([tugasId])
   @@index([siswaId])
@@ -221,8 +214,8 @@ model XpPenalti {
   xp         Float    @default(-50)
   keterangan String?
   createdAt  DateTime @default(now())
+  tugas      Tugas?   @relation(fields: [tugasId], references: [id])
   siswa      Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
-  tugas      Tugas?   @relation(fields: [tugasId], references: [id], onDelete: SetNull)
 
   @@unique([siswaId, tugasId])
   @@index([siswaId])
@@ -230,14 +223,14 @@ model XpPenalti {
 }
 
 model Kehadiran {
-  id        String   @id @default(uuid())
-  siswaId   String
-  tanggal   DateTime
-  status    String   // 'HADIR', 'IZIN', 'SAKIT', 'ALPA'
+  id         String   @id @default(uuid())
+  siswaId    String
+  tanggal    DateTime
+  status     String
   keterangan String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  siswa     Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  siswa      Siswa    @relation(fields: [siswaId], references: [id], onDelete: Cascade)
 
   @@unique([siswaId, tanggal])
   @@index([siswaId])
@@ -245,13 +238,13 @@ model Kehadiran {
 }
 
 model AcakState {
-  id        String   @id @default(uuid())
-  kelas     String
-  rombel    String
-  devices   String   // Store JSON as string for simplicity in SQLite or use Json if supported (Prisma handles this)
-  ringkasan String   // Store JSON as string
-  tidakMasuk String  // Store JSON as string
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  kelas      String
+  rombel     String
+  devices    String
+  ringkasan  String
+  tidakMasuk String
+  updatedAt  DateTime @updatedAt
 
   @@unique([kelas, rombel])
 }
@@ -262,10 +255,9 @@ model CollabTugas {
   siswa1Id  String
   siswa2Id  String
   createdAt DateTime @default(now())
-
-  tugas     Tugas    @relation(fields: [tugasId], references: [id], onDelete: Cascade)
-  siswa1    Siswa    @relation("Siswa1", fields: [siswa1Id], references: [id], onDelete: Cascade)
   siswa2    Siswa    @relation("Siswa2", fields: [siswa2Id], references: [id], onDelete: Cascade)
+  siswa1    Siswa    @relation("Siswa1", fields: [siswa1Id], references: [id], onDelete: Cascade)
+  tugas     Tugas    @relation(fields: [tugasId], references: [id], onDelete: Cascade)
 
   @@unique([tugasId, siswa1Id])
   @@unique([tugasId, siswa2Id])
