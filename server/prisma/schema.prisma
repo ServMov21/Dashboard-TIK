@@ -237,3 +237,15 @@ model Kehadiran {
   @@index([siswaId])
   @@index([tanggal])
 }
+
+model AcakState {
+  id        String   @id @default(uuid())
+  kelas     String
+  rombel    String
+  devices   String   // Store JSON as string for simplicity in SQLite or use Json if supported (Prisma handles this)
+  ringkasan String   // Store JSON as string
+  tidakMasuk String  // Store JSON as string
+  updatedAt DateTime @updatedAt
+
+  @@unique([kelas, rombel])
+}
