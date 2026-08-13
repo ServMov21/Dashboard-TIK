@@ -31,8 +31,8 @@ router.put('/', authMiddleware, async (req, res) => {
         submissionFolderPattern: data.submissionFolderPattern,
         duplicateFileHandling: data.duplicateFileHandling,
         backupDir: data.backupDir,
-        autoBackupEnabled: !!data.autoBackupEnabled,
-        autoBackupIntervalSeconds: parseInt(data.autoBackupIntervalSeconds) || 3600,
+        autoBackupEnabled: data.autoBackupEnabled === undefined ? true : !!data.autoBackupEnabled,
+        autoBackupIntervalSeconds: parseInt(data.autoBackupIntervalSeconds) || 10,
       },
     })
     await startAutoBackup()

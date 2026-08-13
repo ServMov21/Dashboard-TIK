@@ -14,8 +14,8 @@ const SettingsPage = () => {
     submissionFolderPattern: 'KELAS_ROMBEL/NAMA_TUGAS',
     duplicateFileHandling: 'RENAME_INCREMENT',
     backupDir: '',
-    autoBackupEnabled: false,
-    autoBackupIntervalSeconds: 3600,
+    autoBackupEnabled: true,
+    autoBackupIntervalSeconds: 10,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
