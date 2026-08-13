@@ -1092,20 +1092,48 @@ const CollabWidget = ({ tugasId }) => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [temanList, setTemanList] = useState([])
+  const [kelasList, setKelasList] = useState([])
+  const [rombelList, setRombelList] = useState([])
   const [selectedKelas, setSelectedKelas] = useState('')
   const [selectedRombel, setSelectedRombel] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [search, setSearch] = useState('')
   const [tanggalLahir, setTanggalLahir] = useState('')
   const [error, setError] = useState('')
   const [joining, setJoining] = useState(false)
   const [searching, setSearching] = useState(false)
 
-  const KELAS_OPTIONS = ['1', '2', '3', '4', '5', '6']
-  const ROMBEL_OPTIONS = ['A', 'B', 'C', 'D']
-
   useEffect(() => {
     fetchCollabStatus()
   }, [tugasId])
+
+  useEffect(() => {
+    if (showModal) {
+        fetchKelas()
+    }
+  }, [showModal])
+
+  useEffect(() => {
+    setSelectedRombel('')
+    setTemanList([])
+    if (selectedKelas) fetchRombel(selectedKelas)
+  }, [selectedKelas])
+
+  const fetchKelas = async () => {
+      try {
+          const res = await apiRequest('/api/siswa/login-kelas')
+          const data = await res.json()
+          if(res.ok) setKelasList(data)
+      } catch (e) { console.error(e) }
+  }
+
+  const fetchRombel = async (kelas) => {
+      try {
+          const res = await apiRequest(`/api/siswa/login-rombel?kelas=${encodeURIComponent(kelas)}`)
+          const data = await res.json()
+          if(res.ok) setRombelList(data)
+      } catch (e) { console.error(e) }
+  }
 
   const fetchCollabStatus = async () => {
     try {
@@ -1130,11 +1158,15 @@ const CollabWidget = ({ tugasId }) => {
     setShowModal(true)
   }
 
-  const handleSearchSiswa = async () => {
-    if (!selectedKelas || !selectedRombel) {
-      setError('Pilih kelas dan rombel terlebih dahulu.')
-      return
+  useEffect(() => {
+    if (selectedKelas && selectedRombel) {
+        handleSearchSiswa()
+    } else {
+        setTemanList([])
     }
+  }, [selectedKelas, selectedRombel])
+
+  const handleSearchSiswa = async () => {
     setError('')
     setSearching(true)
     setTemanList([])
@@ -1148,12 +1180,17 @@ const CollabWidget = ({ tugasId }) => {
         setError('Tidak ada teman tersedia di kelas/rombel tersebut.')
       }
     } catch (e) {
-      console.error('Error fetching teman list:', e)
       setError(e.message)
     } finally {
       setSearching(false)
     }
   }
+
+  const filteredTemanList = useMemo(() => {
+      const keyword = search.trim().toLowerCase()
+      if (!keyword) return temanList
+      return temanList.filter(t => t.nama.toLowerCase().includes(keyword))
+  }, [search, temanList])
 
   const handleJoin = async (e) => {
     e.preventDefault()
@@ -1257,42 +1294,26 @@ const CollabWidget = ({ tugasId }) => {
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Kelas</label>
                   <select
                     value={selectedKelas}
-                    onChange={(e) => {
-                      setSelectedKelas(e.target.value)
-                      setTemanList([])
-                      setSelectedPartnerId('')
-                    }}
+                    onChange={(e) => setSelectedKelas(e.target.value)}
                     className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
                   >
-                    <option value="">-- Kelas --</option>
-                    {KELAS_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
+                    <option value="">-- Pilih Kelas --</option>
+                    {kelasList.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Rombel</label>
                   <select
                     value={selectedRombel}
-                    onChange={(e) => {
-                      setSelectedRombel(e.target.value)
-                      setTemanList([])
-                      setSelectedPartnerId('')
-                    }}
+                    onChange={(e) => setSelectedRombel(e.target.value)}
                     className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
+                    disabled={!selectedKelas}
                   >
-                    <option value="">-- Rombel --</option>
-                    {ROMBEL_OPTIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    <option value="">-- Pilih Rombel --</option>
+                    {rombelList.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={handleSearchSiswa}
-                disabled={searching || !selectedKelas || !selectedRombel}
-                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition disabled:opacity-50 text-sm border border-gray-200"
-              >
-                {searching ? 'Mencari...' : 'Cari Teman'}
-              </button>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Pilih Teman</label>
@@ -1301,10 +1322,9 @@ const CollabWidget = ({ tugasId }) => {
                   onChange={(e) => setSelectedPartnerId(e.target.value)}
                   className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-blue-500 transition text-sm bg-white"
                   required
-                  disabled={temanList.length === 0}
                 >
                   <option value="">-- Pilih Teman --</option>
-                  {temanList && temanList.map((t) => (
+                  {filteredTemanList.map((t) => (
                     <option key={t.id} value={t.id}>{t.nama}</option>
                   ))}
                 </select>
