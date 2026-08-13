@@ -1114,16 +1114,19 @@ const CollabWidget = ({ tugasId }) => {
   }
 
   const handleOpenCollab = async () => {
+    console.log('handleOpenCollab triggered')
     setError('')
     setSelectedPartnerId('')
     setTanggalLahir('')
     setShowModal(true)
     try {
+      console.log(`Fetching teman list for tugasId: ${tugasId}`)
       const res = await apiRequest(`/api/collab/${tugasId}/teman`)
       const data = await res.json()
-      setTemanList(data)
+      console.log('Teman list fetched:', data)
+      setTemanList(Array.isArray(data) ? data : []) // Ensure it's an array
     } catch (e) {
-      console.error(e)
+      console.error('Error fetching teman list:', e)
     }
   }
 
@@ -1198,6 +1201,7 @@ const CollabWidget = ({ tugasId }) => {
           <span className="text-xs text-gray-500 font-medium">Bekerja bersama teman sekelas di PC yang sama?</span>
           <button
             onClick={handleOpenCollab}
+            type="button" // Add type="button" to prevent default submit behavior
             className="px-4 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-lg hover:bg-blue-700 transition"
           >
             Collab / Join
@@ -1209,7 +1213,7 @@ const CollabWidget = ({ tugasId }) => {
         <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
             <button
-              onClick={() => setShowModal(false)}
+              onClick={() => { setShowModal(false); setError('') }} // Clear error on close
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
             >
               <X className="w-5 h-5" />
@@ -1232,7 +1236,7 @@ const CollabWidget = ({ tugasId }) => {
                   required
                 >
                   <option value="">-- Pilih Teman --</option>
-                  {temanList.map((t) => (
+                  {temanList && temanList.map((t) => (
                     <option key={t.id} value={t.id}>{t.nama}</option>
                   ))}
                 </select>
