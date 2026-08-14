@@ -113,6 +113,8 @@ async function ambilStatusTugas(tugasId) {
       skorKecepatan: p ? p.skorKecepatan : 0,
       skorTotal: p ? p.skorTotal : 0,
       peringkatKecepatan: peringkat,
+      xpBonus: p ? p.xpBonus : 0,
+      xpTotal: p ? p.xpTotal : 0,
     }
   })
 }

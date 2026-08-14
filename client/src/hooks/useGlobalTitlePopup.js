@@ -42,6 +42,13 @@ export function useGlobalTitlePopup() {
               currentTitle: curTitle,
               prevTitle: prevTitle
             })
+          } else {
+            setPopupData({
+              type: 'down',
+              nama: user.nama,
+              currentTitle: curTitle,
+              prevTitle: prevTitle
+            })
           }
           localStorage.setItem(storageKey, curTitle.name)
         } else if (!prevTitleName) {

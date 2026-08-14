@@ -240,10 +240,12 @@ router.put('/bonus/:id', authMiddleware, async (req, res) => {
       updated = await prisma.pengumpulan.update({
         where: { id: req.params.id }, data: { xpBonus: bonus, xpTotal: Math.round(xpTotal * 10) / 10 }
       })
+      req.app.get('io').emit('pengumpulan-update', updated)
     } else {
       updated = await prisma.pengumpulanMengetik.update({
         where: { id: req.params.id }, data: { xpBonus: bonus, xpTotal: Math.round(xpTotal * 10) / 10 }
       })
+      req.app.get('io').emit('pengumpulan-mengetik-update', { tugasId: updated.tugasId, data: updated })
     }    res.json({ message: 'Bonus XP disimpan.', pengumpulan: updated })
   } catch (e) { res.status(500).json({ message: 'Gagal.', error: e.message }) }
 })
@@ -271,38 +273,38 @@ function labelNilaiBonus(nilai) {
 function buildRiwayatEntries({ filePengumpulan = [], mengetikPengumpulan = [], penalti = [] }) {
   const entries = []
 
-  function pushKomponen(p, { waktu, misi, nilai }) {
+  function pushKomponen(p, { waktuBase, waktuBonus, misi, nilai }) {
     const siswaId = p.siswaId
     const nama = p.siswa?.nama
 
     if (p.xpBase) {
       entries.push({
-        waktu, siswaId, nama, misi, perolehan: p.xpBase,
+        waktu: waktuBase, siswaId, nama, misi, perolehan: p.xpBase,
         deskripsi: `Menyelesaikan ${misi}`,
       })
     }
     if (p.xpNilai) {
       const nilaiLabel = labelNilaiBonus(nilai)
       entries.push({
-        waktu, siswaId, nama, misi, perolehan: p.xpNilai,
+        waktu: waktuBase, siswaId, nama, misi, perolehan: p.xpNilai,
         deskripsi: nilaiLabel != null ? `Mendapat BONUS NILAI ${nilaiLabel} dari ${misi}` : `Mendapat bonus nilai dari ${misi}`,
       })
     }
     if (p.xpEarly) {
       entries.push({
-        waktu, siswaId, nama, misi, perolehan: p.xpEarly,
+        waktu: waktuBase, siswaId, nama, misi, perolehan: p.xpEarly,
         deskripsi: `Mendapat Early Submission dari ${misi}`,
       })
     }
     if (p.xpPerfect) {
       entries.push({
-        waktu, siswaId, nama, misi, perolehan: p.xpPerfect,
+        waktu: waktuBase, siswaId, nama, misi, perolehan: p.xpPerfect,
         deskripsi: `Mendapat Nilai Sempurna (100) dari ${misi}`,
       })
     }
     if (p.xpBonus) {
       entries.push({
-        waktu, siswaId, nama, misi, perolehan: p.xpBonus,
+        waktu: waktuBonus, siswaId, nama, misi, perolehan: p.xpBonus,
         deskripsi: `Mendapat Bonus Tambahan dari Guru untuk ${misi}`,
       })
     }
@@ -310,11 +312,11 @@ function buildRiwayatEntries({ filePengumpulan = [], mengetikPengumpulan = [], p
 
   filePengumpulan.forEach(p => {
     if (!p.xpTotal) return
-    pushKomponen(p, { waktu: p.updatedAt, misi: p.tugas?.judul || 'Tugas', nilai: p.nilai })
+    pushKomponen(p, { waktuBase: p.createdAt, waktuBonus: p.updatedAt, misi: p.tugas?.judul || 'Tugas', nilai: p.nilai })
   })
   mengetikPengumpulan.forEach(p => {
     if (!p.xpTotal) return
-    pushKomponen(p, { waktu: p.waktuSelesai, misi: p.tugas?.judul || 'Tugas Mengetik', nilai: p.skorTotal })
+    pushKomponen(p, { waktuBase: p.waktuSelesai, waktuBonus: p.updatedAt, misi: p.tugas?.judul || 'Tugas Mengetik', nilai: p.skorTotal })
   })
   penalti.forEach(p => {
     entries.push({

@@ -250,18 +250,20 @@ const PengumpulanPage = () => {
   const handleSaveBonus = async (submissionId, xpBonus) => {
     if (!submissionId) return
     try {
-      const res = await apiRequest(`/api/xp/bonus/${submissionId}`, 'PUT', { xpBonus })
-      if (!res.ok) throw new Error('Gagal menyimpan bonus')
+      const res = await apiRequest(`/api/xp/bonus/${submissionId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ xpBonus }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Gagal menyimpan bonus')
 
       // Update local state untuk feedback instan
       setSubmissions(prev =>
-        prev.map(sub => {
-          const id = sub.id || sub.pengumpulanId
-          if (id === submissionId) {
-            return { ...sub, xpBonus: xpBonus }
-          }
-          return sub
-        })
+        prev.map(sub =>
+          sub.pengumpulanId === submissionId || (!sub.pengumpulanId && sub.id === submissionId)
+            ? { ...sub, xpBonus: data.pengumpulan.xpBonus, xpTotal: data.pengumpulan.xpTotal }
+            : sub
+        )
       )
     } catch (e) {
       console.error('Gagal menyimpan bonus XP:', e)

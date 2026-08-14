@@ -29,6 +29,7 @@ const NotificationProvider = ({ children }) => {
     })
 
     socket.on('pengumpulan-update', (data) => {
+      window.dispatchEvent(new CustomEvent('xp-updated', { detail: data }))
       addNotification({
         type: 'update',
         title: 'Tugas diperbarui',
@@ -48,6 +49,10 @@ const NotificationProvider = ({ children }) => {
         color: 'text-purple-500',
         bg: 'bg-purple-50',
       })
+    })
+
+    socket.on('pengumpulan-mengetik-update', (data) => {
+      window.dispatchEvent(new CustomEvent('xp-updated', { detail: data }))
     })
 
     return () => {

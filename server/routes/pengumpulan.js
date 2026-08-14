@@ -298,6 +298,8 @@ router.get('/status/:tugasId', authMiddleware, async (req, res) => {
         namaFile: p ? p.namaFile : null,
         ukuran: p ? p.ukuran : null,
         path: p ? p.path : null,
+        xpBonus: p ? p.xpBonus : 0,
+        xpTotal: p ? p.xpTotal : 0,
         nilai: p ? p.nilai : null,
         keterangan: p ? p.keterangan : null,
       }
